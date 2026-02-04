@@ -4,7 +4,6 @@
 #include "GPS_header.h"
 #include "Buttons.h"
 #include "Display.h"
-#include "mag.h"
 #include "SD_header.h"
 
 void setup() {
@@ -34,7 +33,6 @@ void setup() {
   Serial.println("Finished setup");
 }
 
-float compassDegree;
 File GPSfile;
 File* GPSfile_p = &GPSfile;
 
@@ -75,7 +73,7 @@ void loop() {
   SD_saving_init(GPSfile_p);
 
   //Update compass heading, might put this inside the PVTUpdate, it's kind of PVT related
-  //compassDegree = bmm350.getCompassDegree();
+  //
   //Printing
   //Serial.print("the angle between the pointing direction and north (counterclockwise) is:");
   //Serial.println(compassDegree);

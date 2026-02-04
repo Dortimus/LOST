@@ -62,6 +62,8 @@ uint8_t SD_saving_init (File* file_p) {
         file_p->print("Speed (km/s)");
         file_p->print(",");
         file_p->println("Fix type");
+        file_p->print(",");
+        file_p->println("Heading (degrees from North)");
         SDState = 1;
         Serial.println("File + header created!");
         return 1;
@@ -91,7 +93,8 @@ void SD_saving(File* file_p) {
   file_p->print(longi, 7); file_p->print(",");
   file_p->print(alt, 2); file_p->print(",");
   file_p->print(speed_long); file_p->print(",");
-  file_p->println(fix_type);
+  file_p->print(fix_type); file_p->print(",");
+  file_p->println(compassDegree); 
   
   file_p->flush(); // Ensures data is saved even if power is lost
   Serial.println("Data Saved!");

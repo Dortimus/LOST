@@ -1,4 +1,8 @@
 #include <SparkFun_u-blox_GNSS_v3.h>
+#include <DFRobot_BMM350.h>
+
+#define MAG_I2C 0x14
+DFRobot_BMM350_I2C bmm350(&Wire, MAG_I2C);
 
 // --- GNSS Definitions ---
 SFE_UBLOX_GNSS myGNSS;
@@ -14,6 +18,7 @@ volatile uint8_t day = 0;
 volatile uint8_t hour = 0;
 volatile uint8_t minute = 0;
 volatile uint8_t sec = 0;
+volatile float compassDegree = 0;
 
 volatile uint8_t save_enable = 0;
 
@@ -58,5 +63,19 @@ int PVTUpdate () {
   hour = myGNSS.getHour();
   minute = myGNSS.getMinute();
   sec = myGNSS.getSecond();
+
+  compassDegree = bmm350.getCompassDegree();
   return 1;
 }
+
+void init_mag() {
+  while (bmm350.begin()) {
+    Serial.println("bmm350 init failed, Please try again!");
+    delay(1000);
+  }
+  Serial.println("bmm350 init success!");
+  bmm350.setOperationMode(eBmm350NormalMode);
+  bmm350.setPresetMode(BMM350_PRESETMODE_HIGHACCURACY,BMM350_DATA_RATE_25HZ);
+  bmm350.setMeasurementXYZ(); //Probably don't need Z enabled but whatever, do later.
+}
+
