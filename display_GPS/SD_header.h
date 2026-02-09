@@ -61,7 +61,7 @@ uint8_t SD_saving_init (File* file_p) {
         file_p->print(",");
         file_p->print("Speed (km/s)");
         file_p->print(",");
-        file_p->println("Fix type");
+        file_p->print("Fix type");
         file_p->print(",");
         file_p->println("Heading (degrees from North)");
         SDState = 1;
