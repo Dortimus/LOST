@@ -1,0 +1,56 @@
+#ifndef BUTTONS_H
+#define BUTTONS_H
+
+// --- PIN DEFINITIONS ---
+#define INTERRUPT_PIN_POWER   14
+#define INTERRUPT_PIN_DISPLAY 15 
+#define INTERRUPT_PIN_SD_SAVE 33 
+
+#define DEBOUNCE_TIME 250 
+#define NUM_DISPLAY_STATES 1 
+
+// --- STATE VARIABLES ---
+volatile uint8_t powerState = 1;
+volatile uint8_t displayState = 0;
+volatile uint8_t SDState = 0;      // Added to fix the previous 'SDState' error
+volatile uint8_t SDState_next = 0;
+
+// --- DEBOUNCE TIMERS ---
+volatile unsigned long last_power_time = 0;   // Added to fix your current error
+volatile unsigned long last_display_time = 0;
+volatile unsigned long last_sd_time = 0;
+
+// --- INTERRUPT FUNCTIONS ---
+
+void IRAM_ATTR toggleFlagPower() {
+  unsigned long now = millis();
+  if (now - last_power_time > DEBOUNCE_TIME) {
+    powerState = !powerState;
+    last_power_time = now;
+  }
+}
+
+void IRAM_ATTR updateFlagDisplay() {
+  unsigned long now = millis();
+  if (now - last_display_time > DEBOUNCE_TIME) {
+    displayState++;
+    if (displayState > NUM_DISPLAY_STATES) displayState = 0;
+    last_display_time = now;
+  }
+}
+
+void IRAM_ATTR toggleFlagSDSave() {
+  unsigned long now = millis();
+  if (now - last_sd_time > DEBOUNCE_TIME) {
+    SDState_next = !SDState_next;
+    last_sd_time = now;
+  }
+}
+
+void button_init() {
+  pinMode(INTERRUPT_PIN_POWER, INPUT_PULLUP);
+  pinMode(INTERRUPT_PIN_DISPLAY, INPUT_PULLUP);
+  pinMode(INTERRUPT_PIN_SD_SAVE, INPUT_PULLUP);
+}
+
+#endif
