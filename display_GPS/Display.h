@@ -1,72 +1,74 @@
+#ifndef DISPLAY_H
+#define DISPLAY_H
+
 #include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_SSD1305.h>
+#include <math.h>
 
-// --- Display Definitions ---
-#define OLED_RESET -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-Adafruit_SSD1306 display(128, 64, &Wire, OLED_RESET); // Adjust dimensions if needed (e.g., 128, 32)
-#define SCREEN_ADDRESS 0x3C // I2C address for most SSD1306 displays (use I2C scanner if unsure)
+extern volatile uint8_t SDState;
 
 
-int update_display (uint8_t displayState) {
-  switch (displayState) {
-    case 1:
-      //do something - compass
-      break;
-    case 2:
-      //do something else - speed + alt + distance + elevation gain?
-      break;
-    case 3:
-      //do something else - 
-      break;
-    case 4:
-      //do something else
-      break;
-    default:
-      //default behavior, display all
-      display.clearDisplay();
-      display.setCursor(0, 0);
-      //Time
-      display.print("Time: ");
-      display.print(hour);
-      display.print(F(":"));
-      display.print(minute);
-      display.print(F(":"));
-      display.println(sec);
-      //Fix type
-      display.print(F("Fix type: "));
-      display.println(fix_type);
-      //Latitude
-      display.print(F("Lat: "));
-      display.println(lat);
-      //Longitude
-      display.print(F("Long: "));
-      display.print(longi);
-      display.println(F(" (deg.)"));
-      //Altitude
-      display.print(F("Alt: "));
-      display.print(alt);
-      display.println(F(" (m)"));
-      //Speed
-      display.print(F("Speed: "));
-      display.print(speed_long);
-      display.print(F(" (m/s)"));
-      //Update display
-      display.display();
-      break;
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_DC    21 
+#define OLED_CS    17 
+#define OLED_RESET 16 
+
+Adafruit_SSD1305 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
+
+void drawAdvancedCompass(float heading) {
+  int centerX = 64; 
+  int centerY = 35;
+  int radius = 20;
+
+  display.drawCircle(centerX, centerY, radius + 5, WHITE);
+
+  // Labels that rotate so North is always "Physical North"
+  auto drawLabel = [&](const char* label, float angleOffset) {
+    float rad = (angleOffset - heading - 90.0) * (M_PI / 180.0);
+    int x = centerX + cos(rad) * (radius);
+    int y = centerY + sin(rad) * (radius);
+    display.setCursor(x - 3, y - 3);
+    display.print(label);
+  };
+
+  drawLabel("N", 0); drawLabel("E", 90); drawLabel("S", 180); drawLabel("W", 270);
+
+  // Static needle pointing to top of screen
+  display.fillTriangle(centerX, centerY - radius - 2, centerX - 4, centerY - radius + 5, centerX + 4, centerY - radius + 5, WHITE);
+  display.drawLine(centerX, centerY - radius, centerX, centerY + 10, WHITE);
+}
+
+int update_display(uint8_t state) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+
+  if (state == 1) {
+    display.setCursor(40, 0);
+    display.print(F("COMPASS"));
+    drawAdvancedCompass(compassDegree); 
+    display.setCursor(0, 56);
+    display.printf("HDG: %.1f", compassDegree);
+  } else {
+    display.setCursor(0, 0);
+    display.print(fix_type >= 3 ? F("SAT: CONNECTED") : F("SAT: SEARCHING..."));
+    display.setCursor(0, 15);
+    display.printf("LAT: %.6f\n", lat);
+    display.printf("LON: %.6f\n", longi);
+    display.printf("SPD: %ld km/s\n", speed_long);
+    display.setCursor(0, 56);
+    display.printf("FIX:%d | LOG:%s", fix_type, SDState ? "ON" : "OFF");
   }
+  display.display();
   return 1;
 }
 
 void display_init() {
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Don't proceed, loop forever
-  }
+  pinMode(OLED_CS, OUTPUT);
+  digitalWrite(OLED_CS, HIGH);
+  display.begin();
   display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  //display.println("Initializing GNSS...");
-  //display.display();
-  Serial.println("Display initialized");
+  display.display();
 }
+#endif
