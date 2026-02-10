@@ -28,6 +28,7 @@ void setup() {
 }
 
 void loop() {
+
   if (myGNSS.checkUblox()) {
     PVTUpdate();
     if (fix_type >= 3) {
@@ -43,6 +44,4 @@ void loop() {
   compassDegree = bmm350.getCompassDegree();
   update_display(displayState);
   SD_saving_init(GPSfile_p);
-
-  delay(50); // High refresh rate for smooth compass
 }
