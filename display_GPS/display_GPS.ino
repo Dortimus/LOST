@@ -6,16 +6,20 @@
 #include "Display.h"
 #include "SD_header.h"
 
+#define LED_PIN 4
+
 File GPSfile;
 File* GPSfile_p = &GPSfile;
+
 
 void setup() {
   Serial.begin(115200);
   Wire.begin();
   Wire.setClock(400000);
   
-  display_init();
-  init_mag();
+  pinMode(LED_PIN, OUTPUT);
+  //display_init();
+  //init_mag();
   init_gps();
   button_init();
   init_SD();
@@ -41,7 +45,9 @@ void loop() {
     }
   }
 
-  compassDegree = bmm350.getCompassDegree();
-  update_display(displayState);
+  //compassDegree = bmm350.getCompassDegree();
+  //update_display(displayState);
   SD_saving_init(GPSfile_p);
+  digitalWrite(LED_PIN, SDState);
+  Serial.println(SDState);
 }

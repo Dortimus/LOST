@@ -64,7 +64,7 @@ int PVTUpdate () {
   minute = myGNSS.getMinute();
   sec = myGNSS.getSecond();
 
-  compassDegree = bmm350.getCompassDegree();
+  compassDegree = myGNSS.getHeading();
   return 1;
 }
 

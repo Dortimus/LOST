@@ -7,14 +7,14 @@
 
 extern volatile uint8_t SDState;
 
-
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-#define OLED_DC    21 
-#define OLED_CS    17 
-#define OLED_RESET 16 
+#define OLED_DC    21
+#define OLED_CS    17
+#define OLED_RESET 16
 
 Adafruit_SSD1305 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
+
 
 void drawAdvancedCompass(float heading) {
   int centerX = 64; 
@@ -65,6 +65,10 @@ int update_display(uint8_t state) {
 }
 
 void display_init() {
+  if(!display.begin(0x3C)) {
+    Serial.println(F("SSD1305 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
   pinMode(OLED_CS, OUTPUT);
   digitalWrite(OLED_CS, HIGH);
   display.begin();
