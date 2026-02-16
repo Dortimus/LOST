@@ -39,40 +39,53 @@ void drawAdvancedCompass(float heading) {
   display.drawLine(centerX, centerY - radius, centerX, centerY + 10, WHITE);
 }
 
-int update_display(uint8_t state) {
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-
-  if (state == 1) {
-    display.setCursor(40, 0);
-    display.print(F("COMPASS"));
-    drawAdvancedCompass(compassDegree); 
-    display.setCursor(0, 56);
-    display.printf("HDG: %.1f", compassDegree);
-  } else {
-    display.setCursor(0, 0);
-    display.print(fix_type >= 3 ? F("SAT: CONNECTED") : F("SAT: SEARCHING..."));
-    display.setCursor(0, 15);
-    display.printf("LAT: %.6f\n", lat);
-    display.printf("LON: %.6f\n", longi);
-    display.printf("SPD: %ld km/s\n", speed_long);
-    display.setCursor(0, 56);
-    display.printf("FIX:%d | LOG:%s", fix_type, SDState ? "ON" : "OFF");
-  }
-  display.display();
-  return 1;
-}
-
 void display_init() {
   if(!display.begin(0x3C)) {
     Serial.println(F("SSD1305 allocation failed"));
-    for(;;); // Don't proceed, loop forever
+    // Don't proceed, loop forever
   }
+  //update the display connected state.
+  displayConnect = 2;
   pinMode(OLED_CS, OUTPUT);
   digitalWrite(OLED_CS, HIGH);
   display.begin();
   display.clearDisplay();
   display.display();
 }
+
+int update_display(uint8_t state, uint8_t connected) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+
+  if (connected == 1) {
+    //Display is freshly connected
+    display_init();
+    return 1;
+  } else if (connected == 2) {
+    //This should be a switch:case when we have more than 2 states.
+    if (state == 1) {
+      display.setCursor(40, 0);
+      display.print(F("COMPASS"));
+      drawAdvancedCompass(compassDegree); 
+      display.setCursor(0, 56);
+      display.printf("HDG: %.1f", compassDegree);
+    } else {
+      display.setCursor(0, 0);
+      display.print(fix_type >= 3 ? F("SAT: CONNECTED") : F("SAT: SEARCHING..."));
+      display.setCursor(0, 15);
+      display.printf("LAT: %.6f\n", lat);
+      display.printf("LON: %.6f\n", longi);
+      display.printf("SPD: %ld km/s\n", speed_long);
+      display.setCursor(0, 56);
+      display.printf("FIX:%d | LOG:%s", fix_type, SDState ? "ON" : "OFF");
+    }
+    display.display();
+    return 1;
+  } else {
+    //display not connected or incorrect states, do nothing, exit the function.
+    return 0;
+  }
+}
+
 #endif

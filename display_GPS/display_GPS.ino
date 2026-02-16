@@ -10,6 +10,7 @@
 
 File GPSfile;
 File* GPSfile_p = &GPSfile;
+extern volatile uint8_t displayConnect;
 
 
 void setup() {
@@ -27,6 +28,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_POWER), toggleFlagPower, FALLING);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_DISPLAY), updateFlagDisplay, FALLING);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_SD_SAVE), toggleFlagSDSave, FALLING);
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_DISPLAY), FlagDisplayConnected, RISING);
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_DISPLAY), FlagDisplayDisconnected, FALLING);
   
   Serial.println("System Ready");
 }
@@ -45,8 +48,7 @@ void loop() {
     }
   }
 
-  //compassDegree = bmm350.getCompassDegree();
-  //update_display(displayState);
+  update_display(displayState, displayConnect);
   SD_saving_init(GPSfile_p);
   digitalWrite(LED_PIN, SDState);
   Serial.println(SDState);
