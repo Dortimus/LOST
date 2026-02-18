@@ -5,7 +5,7 @@
 #define INTERRUPT_PIN_POWER   25
 #define INTERRUPT_PIN_DISPLAY 34 
 #define INTERRUPT_PIN_SD_SAVE 39 
-#define INTERRUPT_PIN_DISPLAY 0
+#define INTERRUPT_PIN_CONNECTED 0
 
 #define DEBOUNCE_TIME 250 
 #define NUM_DISPLAY_STATES 1 
@@ -27,6 +27,7 @@ volatile unsigned long last_display_disconnected_time = 0;
 // --- INTERRUPT FUNCTIONS ---
 
 void IRAM_ATTR toggleFlagPower() {
+  Serial.println("Power button pushed");
   unsigned long now = millis();
   if (now - last_power_time > DEBOUNCE_TIME) {
     powerState = !powerState;
@@ -35,6 +36,7 @@ void IRAM_ATTR toggleFlagPower() {
 }
 
 void IRAM_ATTR updateFlagDisplay() {
+  Serial.println("Display button pushed");
   unsigned long now = millis();
   if (now - last_display_time > DEBOUNCE_TIME) {
     displayState++;
@@ -44,6 +46,7 @@ void IRAM_ATTR updateFlagDisplay() {
 }
 
 void IRAM_ATTR toggleFlagSDSave() {
+  Serial.println("SD button pushed");
   unsigned long now = millis();
   if (now - last_sd_time > DEBOUNCE_TIME) {
     SDState_next = !SDState_next;
