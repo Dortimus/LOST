@@ -19,8 +19,45 @@ volatile uint8_t hour = 0;
 volatile uint8_t minute = 0;
 volatile uint8_t sec = 0;
 volatile float compassDegree = 0;
-
 volatile uint8_t save_enable = 0;
+
+//hard iron calibration parameters
+const float hard_iron[3] = { -3.3, -34.77, -19.67 };
+//soft iron calibration parameters
+const float soft_iron[3][3] = {
+  { 1, 0, 0 },
+  { 0, 1, 0 },
+  { 0, 0, 1 }
+};
+
+float getCompassDegree() {
+  sBmm350MagData_t magData = bmm350.getGeomagneticData();
+  float mag_data[3];
+  // hard iron calibration
+  mag_data[0] = magData.float_x - hard_iron[0];
+  mag_data[1] = magData.float_y - hard_iron[1];
+  mag_data[2] = magData.float_z - hard_iron[2];
+  //soft iron calibration
+  for (int i = 0; i < 3; i++) {
+    mag_data[i] = (soft_iron[i][0] * mag_data[0]) + (soft_iron[i][1] * mag_data[1]) + (soft_iron[i][2] * mag_data[2]);
+  }
+  magData.x = mag_data[0];
+  magData.y = mag_data[1];
+  magData.z = mag_data[2];
+  magData.float_x = mag_data[0];
+  magData.float_y = mag_data[1];
+  magData.float_z = mag_data[2];
+
+  float compass = 0.0;
+  compass = atan2(magData.x, magData.y);
+  if (compass < 0) {
+      compass += 2 * PI;
+  }
+  if (compass > 2 * PI) {
+      compass -= 2 * PI;
+  }
+  return compass * 180 / M_PI;
+}
 
 void init_gps() {
   if (myGNSS.begin(Wire)) { // Use Wire for I2C
@@ -64,7 +101,8 @@ int PVTUpdate () {
   minute = myGNSS.getMinute();
   sec = myGNSS.getSecond();
 
-  compassDegree = myGNSS.getHeading();
+  compassDegree = getCompassDegree();
+
   return 1;
 }
 
@@ -78,4 +116,6 @@ void init_mag() {
   bmm350.setPresetMode(BMM350_PRESETMODE_HIGHACCURACY,BMM350_DATA_RATE_25HZ);
   bmm350.setMeasurementXYZ(); //Probably don't need Z enabled but whatever, do later.
 }
+
+
 

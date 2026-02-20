@@ -1,6 +1,8 @@
 #ifndef BUTTONS_H
 #define BUTTONS_H
 
+#include "esp_sleep.h"
+
 // --- PIN DEFINITIONS ---
 #define INTERRUPT_PIN_POWER   25
 #define INTERRUPT_PIN_DISPLAY 34 

@@ -67,6 +67,7 @@ int update_display(uint8_t state, uint8_t connected) {
     if (state == 1) {
       display.setCursor(40, 0);
       display.print(F("COMPASS"));
+      compassDegree = getCompassDegree();
       drawAdvancedCompass(compassDegree); 
       display.setCursor(0, 56);
       display.printf("HDG: %.1f", compassDegree);

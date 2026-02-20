@@ -20,7 +20,7 @@ void setup() {
   
   pinMode(LED_PIN, OUTPUT);
   display_init();
-  //init_mag();
+  init_mag();
   init_gps();
   button_init();
   init_SD();
@@ -30,11 +30,25 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_SD_SAVE), toggleFlagSDSave, FALLING);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_CONNECTED), FlagDisplayConnected, RISING);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_CONNECTED), FlagDisplayDisconnected, FALLING);
+  //Pin 25, enable low (pullup resistor)
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_25, 0);
+  powerState = 0;
   
   Serial.println("System Ready");
 }
 
 void loop() {
+  if (powerState == 1) {
+    Serial.println("Sleeping...");
+    delay(2000);
+    display.clearDisplay();
+    display.display();
+    if (SDState == 1) {
+      GPSfile.flush();
+      GPSfile.close();
+    }
+    esp_deep_sleep_start();
+  }
 
   if (myGNSS.checkUblox()) {
     PVTUpdate();
