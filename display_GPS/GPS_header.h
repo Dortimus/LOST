@@ -92,7 +92,7 @@ int PVTUpdate () {
   alt /= 1000;
 
   speed_long = myGNSS.getGroundSpeed();  // Speed in mm/s (library default is often mm/s, check documentation)
-  speed_long /= 1000;                    //km/s
+  speed_long /= 1000*2.237;                    //mph
 
   year = myGNSS.getYear();
   month = myGNSS.getMonth();

@@ -77,7 +77,7 @@ int update_display(uint8_t state, uint8_t connected) {
       display.setCursor(0, 15);
       display.printf("LAT: %.6f\n", lat);
       display.printf("LON: %.6f\n", longi);
-      display.printf("SPD: %ld km/s\n", speed_long);
+      display.printf("SPD: %ld mph\n", speed_long);
       display.setCursor(0, 56);
       display.printf("FIX:%d | LOG:%s", fix_type, SDState ? "ON" : "OFF");
     }

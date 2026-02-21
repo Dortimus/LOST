@@ -8,7 +8,6 @@
 void init_SD () {
   pinMode(SD_CS, OUTPUT);
   digitalWrite(SD_CS, HIGH);
-  Serial.println("SD initialized");
 }
 
 uint8_t SD_saving_init (File* file_p) {
@@ -17,16 +16,24 @@ uint8_t SD_saving_init (File* file_p) {
     Serial.println("Null file pointer");
     return 0;
   }
+
   if (SDState == 0 && SDState_next == 1) {
     //wasn't writing and is now supposed to begin writing
     //see if the card is present and can be initialized check using CD pin
     if (!SD.begin(SD_CS)) {
       Serial.println("Card failed, or not present"); //display on the display?
+      display.clearDisplay();
+      display.setCursor(0,0);
+      display.print("No SD card present!");
+      display.display();
       //Return a failed value, continue loop.
+      SDState_next = 0;
+      SDState = 0;
+      delay(1000);
       return 0;
     } else {
+      Serial.println("SD card initialized");
       //Card is recognized, create a file with a name
-      Serial.println("Card initialized.");
       uint16_t num_files = 0;
       char filename[14] = "/XXXXXXXX.csv";
       if (fix_type == 3) {
@@ -59,7 +66,7 @@ uint8_t SD_saving_init (File* file_p) {
         file_p->print(",");
         file_p->print("Altitude");
         file_p->print(",");
-        file_p->print("Speed (km/s)");
+        file_p->print("Speed (mph)");
         file_p->print(",");
         file_p->print("Fix type");
         file_p->print(",");
@@ -82,7 +89,7 @@ uint8_t SD_saving_init (File* file_p) {
 
 void SD_saving(File* file_p) {
   if (!file_p || !(*file_p)) return;
-
+  Serial.println("About to write to csv");
   file_p->print(year); file_p->print(",");
   file_p->print(month); file_p->print(",");
   file_p->print(day); file_p->print(",");

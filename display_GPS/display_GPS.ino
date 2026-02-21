@@ -65,7 +65,14 @@ void loop() {
   update_display(displayState, displayConnect);
   SD_saving_init(GPSfile_p);
   digitalWrite(LED_PIN, SDState);
+
+  //debugging
+  Serial.print("SDState: ");
   Serial.println(SDState);
+  Serial.print("SDState_next: ");
+  Serial.println(SDState_next);
+  Serial.print("displayState: ");
   Serial.println(displayState);
+  Serial.print("displayConnect: ");
   Serial.println(displayConnect);
 }
