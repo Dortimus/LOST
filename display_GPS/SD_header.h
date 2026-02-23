@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 //SD card chip select pin
-#define SD_CS 4
+#define SD_CS 14
 
 void init_SD () {
   pinMode(SD_CS, OUTPUT);
@@ -37,8 +37,8 @@ uint8_t SD_saving_init (File* file_p) {
       uint16_t num_files = 0;
       char filename[14] = "/XXXXXXXX.csv";
       if (fix_type == 3) {
-        //If we have MMDDYYHHMM data, use that to name the file
-        sprintf(filename, "/%d%d%d%d%d.csv", month % 100, day % 100, year % 100, hour % 100, minute % 100);
+        //If we have MMDDYYMMSS data, use that to name the file
+        sprintf(filename, "/%d%d%d%d%d.csv", month % 100, day % 100, hour % 100, minute % 100, sec % 100);
       } else {
         //If no good fix, use the millis to name file - THIS COULD BE BETTER!
         sprintf(filename, "/%d.csv", millis() % 100000000);

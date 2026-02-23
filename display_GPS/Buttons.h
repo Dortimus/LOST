@@ -7,7 +7,7 @@
 #define INTERRUPT_PIN_POWER   25
 #define INTERRUPT_PIN_DISPLAY 34 
 #define INTERRUPT_PIN_SD_SAVE 39 
-#define INTERRUPT_PIN_CONNECTED 0
+#define INTERRUPT_PIN_CONNECTED 27
 
 #define DEBOUNCE_TIME 250 
 #define NUM_DISPLAY_STATES 1 
@@ -27,7 +27,6 @@ volatile unsigned long last_display_connected_time = 0;
 volatile unsigned long last_display_disconnected_time = 0;
 
 // --- INTERRUPT FUNCTIONS ---
-
 void IRAM_ATTR toggleFlagPower() {
   Serial.println("Power button pushed");
   unsigned long now = millis();
@@ -56,19 +55,19 @@ void IRAM_ATTR toggleFlagSDSave() {
   }
 }
 
-void IRAM_ATTR FlagDisplayConnected() {
+void IRAM_ATTR FlagDisplayChange() {
+  delay(500);
   unsigned long now = millis();
   if (now - last_display_connected_time > DEBOUNCE_TIME) {
-    displayConnect = 1;
-    last_display_connected_time = now;
-  }
-}
-
-void IRAM_ATTR FlagDisplayDisconnected() {
-  unsigned long now = millis();
-  if (now - last_display_disconnected_time > DEBOUNCE_TIME) {
-    displayConnect = 0;
-    last_display_disconnected_time = now;
+    if (digitalRead(INTERRUPT_PIN_CONNECTED) == LOW) {
+      Serial.println("Display connected");
+      displayConnect = 1;
+      last_display_connected_time = now;
+    } else if (digitalRead(INTERRUPT_PIN_CONNECTED) == HIGH) {
+      Serial.println("Display disconnected");
+      displayConnect = 0;
+      last_display_disconnected_time = now;
+    }
   }
 }
 
@@ -76,6 +75,7 @@ void button_init() {
   pinMode(INTERRUPT_PIN_POWER, INPUT);
   pinMode(INTERRUPT_PIN_DISPLAY, INPUT);
   pinMode(INTERRUPT_PIN_SD_SAVE, INPUT);
+  pinMode(INTERRUPT_PIN_CONNECTED, INPUT_PULLUP);
 }
 
 

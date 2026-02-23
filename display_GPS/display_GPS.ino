@@ -11,6 +11,7 @@
 File GPSfile;
 File* GPSfile_p = &GPSfile;
 extern volatile uint8_t displayConnect;
+int batteryLevel = 0;
 
 
 void setup() {
@@ -28,8 +29,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_POWER), toggleFlagPower, FALLING);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_DISPLAY), updateFlagDisplay, FALLING);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_SD_SAVE), toggleFlagSDSave, FALLING);
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_CONNECTED), FlagDisplayConnected, RISING);
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_CONNECTED), FlagDisplayDisconnected, FALLING);
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_CONNECTED), FlagDisplayChange, CHANGE);
   //Pin 25, enable low (pullup resistor)
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_25, 0);
   powerState = 0;
@@ -62,9 +62,12 @@ void loop() {
     }
   }
 
+  batteryLevel = checkBatteryLevel();
   update_display(displayState, displayConnect);
   SD_saving_init(GPSfile_p);
   digitalWrite(LED_PIN, SDState);
+
+  
 
   //debugging
   Serial.print("SDState: ");
@@ -75,4 +78,6 @@ void loop() {
   Serial.println(displayState);
   Serial.print("displayConnect: ");
   Serial.println(displayConnect);
+  Serial.print("Battery level: ");
+  Serial.println(batteryLevel);
 }

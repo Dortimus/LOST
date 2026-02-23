@@ -2,6 +2,7 @@
 #include <DFRobot_BMM350.h>
 
 #define MAG_I2C 0x14
+#define VBATPIN A0
 DFRobot_BMM350_I2C bmm350(&Wire, MAG_I2C);
 
 // --- GNSS Definitions ---
@@ -51,10 +52,10 @@ float getCompassDegree() {
   float compass = 0.0;
   compass = atan2(magData.x, magData.y);
   if (compass < 0) {
-      compass += 2 * PI;
+    compass += 2 * PI;
   }
   if (compass > 2 * PI) {
-      compass -= 2 * PI;
+    compass -= 2 * PI;
   }
   return compass * 180 / M_PI;
 }
@@ -104,6 +105,18 @@ int PVTUpdate () {
   compassDegree = getCompassDegree();
 
   return 1;
+}
+
+int checkBatteryLevel() {
+  float measuredvbat = analogRead(VBATPIN);
+  measuredvbat *= 2;    // Voltage divider divides by 2, so multiply by 2
+  measuredvbat *= 3.3;  // Reference voltage is 3.3V
+  measuredvbat /= 4095; // ADC resolution is 12-bit (0-4095)
+  
+  // Map voltage to percentage (3.2V = 0%, 4.2V = 100%)
+  // LiPo range is typically 3.2V (empty) to 4.2V (full)
+  int batteryLevel = map(constrain(measuredvbat * 100, 320, 420), 320, 420, 0, 100);
+  return batteryLevel;
 }
 
 void init_mag() {

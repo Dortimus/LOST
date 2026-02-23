@@ -6,6 +6,7 @@
 #include <math.h>
 
 extern volatile uint8_t SDState;
+extern int batteryLevel;
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -42,15 +43,15 @@ void drawAdvancedCompass(float heading) {
 void display_init() {
   if(!display.begin(0x3C)) {
     Serial.println(F("SSD1305 allocation failed"));
-    // Don't proceed, loop forever
+  } else {
+    Serial.println("SSD1305 connected successfully");
+    displayConnect = 2;
+    pinMode(OLED_CS, OUTPUT);
+    digitalWrite(OLED_CS, HIGH);
+    display.begin();
+    display.clearDisplay();
+    display.display();
   }
-  //update the display connected state.
-  displayConnect = 2;
-  pinMode(OLED_CS, OUTPUT);
-  digitalWrite(OLED_CS, HIGH);
-  display.begin();
-  display.clearDisplay();
-  display.display();
 }
 
 int update_display(uint8_t state, uint8_t connected) {
@@ -78,6 +79,7 @@ int update_display(uint8_t state, uint8_t connected) {
       display.printf("LAT: %.6f\n", lat);
       display.printf("LON: %.6f\n", longi);
       display.printf("SPD: %ld mph\n", speed_long);
+      display.printf("BAT: %d\n", batteryLevel);
       display.setCursor(0, 56);
       display.printf("FIX:%d | LOG:%s", fix_type, SDState ? "ON" : "OFF");
     }
