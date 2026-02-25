@@ -65,7 +65,12 @@ void loop() {
   batteryLevel = checkBatteryLevel();
   update_display(displayState, displayConnect);
   SD_saving_init(GPSfile_p);
-  digitalWrite(LED_PIN, SDState);
+  if (SDState == 1) {
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+  Serial.println("got past the LED write");
 
   
 

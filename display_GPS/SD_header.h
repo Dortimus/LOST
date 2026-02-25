@@ -38,7 +38,7 @@ uint8_t SD_saving_init (File* file_p) {
       char filename[14] = "/XXXXXXXX.csv";
       if (fix_type == 3) {
         //If we have MMDDYYMMSS data, use that to name the file
-        sprintf(filename, "/%d%d%d%d%d.csv", month % 100, day % 100, hour % 100, minute % 100, sec % 100);
+        sprintf(filename, "/%d%d%d%d.csv", day % 100, hour % 100, minute % 100, sec % 100);
       } else {
         //If no good fix, use the millis to name file - THIS COULD BE BETTER!
         sprintf(filename, "/%d.csv", millis() % 100000000);
@@ -88,20 +88,23 @@ uint8_t SD_saving_init (File* file_p) {
 }
 
 void SD_saving(File* file_p) {
-  if (!file_p || !(*file_p)) return;
   Serial.println("About to write to csv");
-  file_p->print(year); file_p->print(",");
-  file_p->print(month); file_p->print(",");
-  file_p->print(day); file_p->print(",");
-  file_p->print(hour); file_p->print(",");
-  file_p->print(minute); file_p->print(",");
-  file_p->print(sec); file_p->print(",");
-  file_p->print(lat, 7); file_p->print(","); // 7 decimal places for GPS precision
-  file_p->print(longi, 7); file_p->print(",");
-  file_p->print(alt, 2); file_p->print(",");
-  file_p->print(speed_long); file_p->print(",");
-  file_p->print(fix_type); file_p->print(",");
-  file_p->println(compassDegree); 
+  //if (!file_p || !(*file_p)) return;
+  // 128 bytes is plenty for one CSV line
+  char logBuffer[128]; 
+
+  // Construct the string safely
+  int written = snprintf(logBuffer, sizeof(logBuffer), 
+         "%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.2f,%.2f,%d,%.6f", 
+         year, month, day, hour, minute, sec, 
+         lat, longi, alt, speed_long, fix_type, compassDegree);
+
+  // Check if we exceeded the buffer size
+  if (written >= sizeof(logBuffer)) {
+    Serial.println("Buffer overflow detected! Increase logBuffer size.");
+  } else {
+    file_p->println(logBuffer);
+  }
   
   file_p->flush(); // Ensures data is saved even if power is lost
   Serial.println("Data Saved!");
