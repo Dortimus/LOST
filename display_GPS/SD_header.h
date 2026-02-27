@@ -48,29 +48,7 @@ uint8_t SD_saving_init (File* file_p) {
       Serial.println(filename);
       if (file_p->size() == 0) {
         //If the file is empty, add a header at the top
-        file_p->print("Year");
-        file_p->print(",");
-        file_p->print("Month");
-        file_p->print(",");
-        file_p->print("Day");
-        file_p->print(",");
-        file_p->print("Hour");
-        file_p->print(",");
-        file_p->print("Minute");
-        file_p->print(",");
-        file_p->print("Second");
-        file_p->print(",");
-        file_p->print("Latitude");
-        file_p->print(",");
-        file_p->print("Longitude");
-        file_p->print(",");
-        file_p->print("Altitude");
-        file_p->print(",");
-        file_p->print("Speed (mph)");
-        file_p->print(",");
-        file_p->print("Fix type");
-        file_p->print(",");
-        file_p->println("Heading (degrees from North)");
+        file_p->print("Year,Month,Day,Hour,Minute,Second,Latitude,Longitude,Altitude,Spped(mph),Fix type,Heading,Distance");
         SDState = 1;
         Serial.println("File + header created!");
         return 1;
@@ -95,9 +73,9 @@ void SD_saving(File* file_p) {
 
   // Construct the string safely
   int written = snprintf(logBuffer, sizeof(logBuffer), 
-         "%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.2f,%.2f,%d,%.6f", 
+         "%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.2f,%.2f,%d,%.6f,%.6f", 
          year, month, day, hour, minute, sec, 
-         lat, longi, alt, speed_long, fix_type, compassDegree);
+         lat, longi, alt, speed_long, fix_type, compassDegree, distance);
 
   // Check if we exceeded the buffer size
   if (written >= sizeof(logBuffer)) {

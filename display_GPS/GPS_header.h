@@ -21,6 +21,8 @@ volatile uint8_t minute = 0;
 volatile uint8_t sec = 0;
 volatile float compassDegree = 0;
 volatile uint8_t save_enable = 0;
+volatile float distance
+volatile int lastDistanceTime = 0;
 
 //hard iron calibration parameters
 const float hard_iron[3] = { -3.3, -34.77, -19.67 };
@@ -130,5 +132,23 @@ void init_mag() {
   bmm350.setMeasurementXYZ(); //Probably don't need Z enabled but whatever, do later.
 }
 
-
+float haversine(float lat1, float lon1, float lat2, float lon2) {
+  // Distance in miles (approximate Earth radius)
+  float R = 3959.0;
+  
+  // Convert degrees to radians
+  float dLat = (lat2 - lat1) * PI / 180.0;
+  float dLon = (lon2 - lon1) * PI / 180.0;
+  
+  float rLat1 = lat1 * PI / 180.0;
+  float rLat2 = lat2 * PI / 180.0;
+  
+  // Haversine formula
+  float a = sin(dLat / 2.0) * sin(dLat / 2.0) +
+            cos(rLat1) * cos(rLat2) *
+            sin(dLon / 2.0) * sin(dLon / 2.0);
+  
+  float c = 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
+  return R * c;
+}
 
