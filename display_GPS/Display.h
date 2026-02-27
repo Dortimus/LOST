@@ -1,64 +1,128 @@
-#ifndef BUTTONS_H
-#define BUTTONS_H
+#ifndef DISPLAY_H
+#define DISPLAY_H
 
-#include "esp_sleep.h"
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1305.h>
+#include <math.h>
 
-#define INTERRUPT_PIN_POWER 25
-#define INTERRUPT_PIN_DISPLAY 34 
-#define INTERRUPT_PIN_SD_SAVE 39 
-#define INTERRUPT_PIN_CONNECTED 27
+// Variables from your original headers (GPS_header.h, Buttons.h, etc.)
+extern volatile uint8_t hour, minute, sec, SDState, displayConnect, fix_type;
+extern int batteryLevel;
+extern volatile float lat, longi, compassDegree;
+extern volatile long speed_long;
+extern float getCompassDegree();
 
-#define DEBOUNCE_TIME 250 
-#define NUM_DISPLAY_STATES 1 
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_DC    21
+#define OLED_CS    17
+#define OLED_RESET 16
 
-volatile uint8_t powerState = 0;
-volatile uint8_t displayState = 0;
-volatile uint8_t displayConnect = 0;
-volatile uint8_t SDState = 0;      
-volatile uint8_t SDState_next = 0;
+Adafruit_SSD1305 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
-volatile unsigned long last_power_time = 0;   
-volatile unsigned long last_display_time = 0;
-volatile unsigned long last_sd_time = 0;
-volatile unsigned long last_display_connected_time = 0;
+// --- UI HELPER FUNCTIONS ---
 
-void IRAM_ATTR toggleFlagPower() {
-  unsigned long now = millis();
-  if (now - last_power_time > DEBOUNCE_TIME) {
-    powerState = !powerState;
-    last_power_time = now;
+void drawClock(int x, int y) {
+  display.setCursor(x, y);
+  display.printf("%02d:%02d", hour, minute);
+}
+
+void drawBatteryIcon(int x, int y, int percentage) {
+  display.drawRect(x, y, 26, 12, WHITE);
+  display.fillRect(x + 26, y + 3, 2, 6, WHITE); // Battery nub
+  int fillWidth = map(constrain(percentage, 0, 100), 0, 100, 0, 22);
+  if (fillWidth > 0) display.fillRect(x + 2, y + 2, fillWidth, 8, WHITE);
+  display.setCursor(x + 4, y + 2);
+  display.setTextColor(percentage > 50 ? BLACK : WHITE);
+  display.print(percentage);
+  display.setTextColor(WHITE);
+}
+
+void drawRecordingStatus(int x, int y) {
+  if (SDState == 1) {
+    display.fillCircle(x + 2, y + 3, 2, WHITE);
+    display.setCursor(x + 8, y);
+    display.print("REC");
   }
 }
 
-void IRAM_ATTR updateFlagDisplay() {
-  unsigned long now = millis();
-  if (now - last_display_time > DEBOUNCE_TIME) {
-    displayState++;
-    if (displayState > NUM_DISPLAY_STATES) displayState = 0;
-    last_display_time = now;
+// --- YOUR ORIGINAL COMPASS DESIGN ---
+
+void drawAdvancedCompass(float heading) {
+  int centerX = 64; 
+  int centerY = 38; // Shifted down slightly for top bar
+  int radius = 18;
+
+  display.drawCircle(centerX, centerY, radius + 4, WHITE);
+
+  auto drawLabel = [&](const char* label, float angleOffset) {
+    float rad = (angleOffset - heading - 90.0) * (M_PI / 180.0);
+    int x = centerX + cos(rad) * radius;
+    int y = centerY + sin(rad) * radius;
+    display.setCursor(x - 3, y - 3);
+    display.print(label);
+  };
+
+  drawLabel("N", 0); drawLabel("E", 90); drawLabel("S", 180); drawLabel("W", 270);
+
+  // Static needle pointing to top of screen
+  display.fillTriangle(centerX, centerY - radius - 2, centerX - 4, centerY - radius + 5, centerX + 4, centerY - radius + 5, WHITE);
+  display.drawLine(centerX, centerY - radius, centerX, centerY + 5, WHITE);
+}
+
+// --- DISPLAY INITIALIZATION ---
+
+void display_init() {
+  if(!display.begin(0x3C)) {
+    Serial.println(F("SSD1305 allocation failed"));
+  } else {
+    displayConnect = 2;
+    pinMode(OLED_CS, OUTPUT);
+    digitalWrite(OLED_CS, HIGH);
+    display.begin();
+    display.clearDisplay();
+    display.display();
   }
 }
 
-void IRAM_ATTR toggleFlagSDSave() {
-  unsigned long now = millis();
-  if (now - last_sd_time > DEBOUNCE_TIME) {
-    SDState_next = !SDState_next;
-    last_sd_time = now;
-  }
-}
+// --- MAIN UPDATE FUNCTION ---
 
-void IRAM_ATTR FlagDisplayChange() {
-  unsigned long now = millis();
-  if (now - last_display_connected_time > DEBOUNCE_TIME) {
-    displayConnect = (digitalRead(INTERRUPT_PIN_CONNECTED) == LOW) ? 1 : 0;
-    last_display_connected_time = now;
-  }
-}
+int update_display(uint8_t state, uint8_t connected) {
+  if (connected == 1) {
+    display_init();
+    return 1;
+  } else if (connected == 2) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
 
-void button_init() {
-  pinMode(INTERRUPT_PIN_POWER, INPUT_PULLUP);
-  pinMode(INTERRUPT_PIN_DISPLAY, INPUT_PULLUP);
-  pinMode(INTERRUPT_PIN_SD_SAVE, INPUT_PULLUP);
-  pinMode(INTERRUPT_PIN_CONNECTED, INPUT_PULLUP);
+    // TOP BAR (Clock, Battery, SAT status)
+    display.setCursor(2, 2);
+    display.print(fix_type >= 3 ? "FIX" : "SCH");
+    drawClock(52, 2);
+    drawBatteryIcon(98, 2, batteryLevel);
+
+    // BOTTOM BAR (Recording dot)
+    drawRecordingStatus(98, 54);
+
+    if (state == 1) {
+      // SCREEN 1: COMPASS
+      compassDegree = getCompassDegree(); // Polled directly for smooth movement
+      drawAdvancedCompass(compassDegree); 
+      display.setCursor(0, 54);
+      display.printf("HDG: %.1f", compassDegree);
+    } else {
+      // SCREEN 2: DATA
+      display.setCursor(0, 18);
+      display.printf("LAT: %.6f\n", lat);
+      display.printf("LON: %.6f\n", longi);
+      display.printf("SPD: %ld mph", speed_long);
+    }
+    
+    display.display();
+    return 1;
+  } else {
+    return 0;
+  }
 }
 #endif
