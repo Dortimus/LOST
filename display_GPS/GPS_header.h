@@ -4,71 +4,128 @@
 #define MAG_I2C 0x14
 #define VBATPIN A0
 DFRobot_BMM350_I2C bmm350(&Wire, MAG_I2C);
+
+// --- GNSS Definitions ---
 SFE_UBLOX_GNSS myGNSS;
 
-// --- SHARED VARIABLES ---
-volatile float lat = 0, longi = 0, alt = 0;
+volatile float lat = 0;
+volatile float longi = 0;
+volatile float alt = 0;
 volatile long speed_long = 0;
 volatile uint8_t fix_type = 0;
 volatile uint16_t year = 0;
-volatile uint8_t month = 0, day = 0, hour = 0, minute = 0, sec = 0;
+volatile uint8_t month = 0;
+volatile uint8_t day = 0;
+volatile uint8_t hour = 0;
+volatile uint8_t minute = 0;
+volatile uint8_t sec = 0;
 volatile float compassDegree = 0;
+volatile uint8_t save_enable = 0;
 
-// Your proven calibration values
+//hard iron calibration parameters
 const float hard_iron[3] = { -3.3, -34.77, -19.67 };
-const float soft_iron[3][3] = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
+//soft iron calibration parameters
+const float soft_iron[3][3] = {
+  { 1, 0, 0 },
+  { 0, 1, 0 },
+  { 0, 0, 1 }
+};
 
 float getCompassDegree() {
   sBmm350MagData_t magData = bmm350.getGeomagneticData();
-  float mag_x = magData.float_x - hard_iron[0];
-  float mag_y = magData.float_y - hard_iron[1];
+  float mag_data[3];
+  // hard iron calibration
+  mag_data[0] = magData.float_x - hard_iron[0];
+  mag_data[1] = magData.float_y - hard_iron[1];
+  mag_data[2] = magData.float_z - hard_iron[2];
+  //soft iron calibration
+  for (int i = 0; i < 3; i++) {
+    mag_data[i] = (soft_iron[i][0] * mag_data[0]) + (soft_iron[i][1] * mag_data[1]) + (soft_iron[i][2] * mag_data[2]);
+  }
+  magData.x = mag_data[0];
+  magData.y = mag_data[1];
+  magData.z = mag_data[2];
+  magData.float_x = mag_data[0];
+  magData.float_y = mag_data[1];
+  magData.float_z = mag_data[2];
 
-  // Soft iron application
-  float corrected_x = (soft_iron[0][0] * mag_x) + (soft_iron[0][1] * mag_y);
-  float corrected_y = (soft_iron[1][0] * mag_x) + (soft_iron[1][1] * mag_y);
-
-  float heading = atan2(corrected_x, corrected_y);
-  if (heading < 0) heading += 2 * M_PI;
-  return heading * 180.0 / M_PI;
+  float compass = 0.0;
+  compass = atan2(magData.x, magData.y);
+  if (compass < 0) {
+    compass += 2 * PI;
+  }
+  if (compass > 2 * PI) {
+    compass -= 2 * PI;
+  }
+  return compass * 180 / M_PI;
 }
 
 void init_gps() {
-  if (myGNSS.begin(Wire)) {
-    myGNSS.setI2COutput(COM_TYPE_UBX);
-    myGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT);
+  if (myGNSS.begin(Wire)) { // Use Wire for I2C
+    Serial.println(F("u-blox GNSS initialized successfully!"));
+    //display.setCursor(0, 9);
+    //display.println("GNSS Ready");
+    //display.display();
+    myGNSS.setI2COutput(COM_TYPE_UBX); // Set I2C port to output UBX messages (less noisy than NMEA)
+    myGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT); // Save settings
+  } else {
+    Serial.println(F("Failed to initialize u-blox GNSS"));
+    //display.setCursor(0, 19);
+    //display.println("GNSS Error!");
+    //display.display();
+    while(1);
   }
 }
 
-int PVTUpdate() {
+int PVTUpdate () {
   fix_type = myGNSS.getFixType();
-  lat = (float)myGNSS.getLatitude() * 0.0000001;
-  longi = (float)myGNSS.getLongitude() * 0.0000001;
-  
-  // Altitude MSL
-  alt = (float)myGNSS.getAltitudeMSL() / 1000.0;
-  
-  speed_long = (myGNSS.getGroundSpeed() / 1000.0) * 2.237; 
-  
-  // Update ALL time variables for the SD file naming
+
+  int32_t latitude = myGNSS.getLatitude();
+  lat = (float)latitude;
+  lat *= (0.0000001);
+
+  int32_t longitude = myGNSS.getLongitude();
+  longi = (float)longitude;
+  longi *= (0.0000001);
+
+  int32_t altitude = myGNSS.getAltitudeMSL();  // Altitude above Mean Sea Level
+  alt = (float)altitude;
+  alt /= 1000;
+
+  speed_long = myGNSS.getGroundSpeed();  // Speed in mm/s (library default is often mm/s, check documentation)
+  speed_long /= 1000*2.237;                    //mph
+
   year = myGNSS.getYear();
   month = myGNSS.getMonth();
   day = myGNSS.getDay();
   hour = myGNSS.getHour();
   minute = myGNSS.getMinute();
   sec = myGNSS.getSecond();
-  
+
+  compassDegree = getCompassDegree();
+
   return 1;
 }
 
-void init_mag() {
-  if (bmm350.begin() == 0) {
-    bmm350.setOperationMode(eBmm350NormalMode);
-    bmm350.setPresetMode(BMM350_PRESETMODE_HIGHACCURACY, BMM350_DATA_RATE_25HZ);
-    bmm350.setMeasurementXYZ();
-  }
+int checkBatteryLevel() {
+  float measuredvbat = analogRead(VBATPIN);
+  measuredvbat *= 2;    // Voltage divider divides by 2, so multiply by 2
+  measuredvbat *= 3.3;  // Reference voltage is 3.3V
+  measuredvbat /= 4095; // ADC resolution is 12-bit (0-4095)
+  
+  // Map voltage to percentage (3.2V = 0%, 4.2V = 100%)
+  // LiPo range is typically 3.2V (empty) to 4.2V (full)
+  int batteryLevel = map(constrain(measuredvbat * 100, 320, 420), 320, 420, 0, 100);
+  return batteryLevel;
 }
 
-int checkBatteryLevel() {
-  float v = (analogRead(VBATPIN) * 2.0 * 3.3) / 4095.0;
-  return map(constrain(v * 100, 320, 420), 320, 420, 0, 100);
+void init_mag() {
+  while (bmm350.begin()) {
+    Serial.println("bmm350 init failed, Please try again!");
+    delay(1000);
+  }
+  Serial.println("bmm350 init success!");
+  bmm350.setOperationMode(eBmm350NormalMode);
+  bmm350.setPresetMode(BMM350_PRESETMODE_HIGHACCURACY,BMM350_DATA_RATE_25HZ);
+  bmm350.setMeasurementXYZ(); //Probably don't need Z enabled but whatever, do later.
 }
