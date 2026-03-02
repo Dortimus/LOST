@@ -5,12 +5,10 @@
 #include <Adafruit_SSD1305.h>
 #include <math.h>
 
-// Variables from your original headers (GPS_header.h, Buttons.h, etc.)
-extern volatile uint8_t hour, minute, sec, SDState, displayConnect, fix_type;
-extern int batteryLevel;
-extern volatile float lat, longi, compassDegree;
+extern volatile float lat, longi, alt, compassDegree;
 extern volatile long speed_long;
-extern float getCompassDegree();
+extern volatile uint8_t fix_type, hour, minute, SDState, displayConnect;
+extern int batteryLevel;
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -20,41 +18,36 @@ extern float getCompassDegree();
 
 Adafruit_SSD1305 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
-// --- UI HELPER FUNCTIONS ---
-
-void drawClock(int x, int y) {
-  display.setCursor(x, y);
-  display.printf("%02d:%02d", hour, minute);
-}
-
-void drawBatteryIcon(int x, int y, int percentage) {
-  display.drawRect(x, y, 26, 12, WHITE);
-  display.fillRect(x + 26, y + 3, 2, 6, WHITE); // Battery nub
-  int fillWidth = map(constrain(percentage, 0, 100), 0, 100, 0, 22);
-  if (fillWidth > 0) display.fillRect(x + 2, y + 2, fillWidth, 8, WHITE);
-  display.setCursor(x + 4, y + 2);
-  display.setTextColor(percentage > 50 ? BLACK : WHITE);
-  display.print(percentage);
-  display.setTextColor(WHITE);
-}
-
-void drawRecordingStatus(int x, int y) {
-  if (SDState == 1) {
-    display.fillCircle(x + 2, y + 3, 2, WHITE);
-    display.setCursor(x + 8, y);
-    display.print("REC");
+// 1. SIGNAL BARS (Restored)
+void drawAnimatedBars(int x, int y, uint8_t fix) {
+  int animStep = (millis() / 300) % 3;
+  for (int i = 0; i < 3; i++) {
+    int h = 4 + (i * 3);
+    display.drawRect(x + (i * 5), y + (10 - h), 3, h, WHITE);
+    // If we have a 3D fix, show all bars. Otherwise, animate searching.
+    if (fix >= 3 || animStep >= i) {
+      display.fillRect(x + (i * 5), y + (10 - h), 3, h, WHITE);
+    }
   }
 }
 
-// --- YOUR ORIGINAL COMPASS DESIGN ---
+// 2. BATTERY ICON (Clean: Fill + Text)
+void drawBatteryIcon(int x, int y, int pct) {
+  display.drawRect(x, y, 26, 12, WHITE);
+  display.fillRect(x + 26, y + 3, 2, 6, WHITE); 
+  int fill = map(constrain(pct, 0, 100), 0, 100, 0, 22);
+  if (fill > 0) display.fillRect(x + 2, y + 2, fill, 8, WHITE);
+  
+  display.setCursor(x + 3, y + 2);
+  display.setTextColor(pct > 60 ? BLACK : WHITE);
+  display.print(pct);
+  display.setTextColor(WHITE);
+}
 
+// 3. COMPASS
 void drawAdvancedCompass(float heading) {
-  int centerX = 64; 
-  int centerY = 38; // Shifted down slightly for top bar
-  int radius = 18;
-
-  display.drawCircle(centerX, centerY, radius + 4, WHITE);
-
+  int centerX = 64, centerY = 35, radius = 20;
+  display.drawCircle(centerX, centerY, radius + 5, WHITE);
   auto drawLabel = [&](const char* label, float angleOffset) {
     float rad = (angleOffset - heading - 90.0) * (M_PI / 180.0);
     int x = centerX + cos(rad) * radius;
@@ -62,67 +55,54 @@ void drawAdvancedCompass(float heading) {
     display.setCursor(x - 3, y - 3);
     display.print(label);
   };
-
   drawLabel("N", 0); drawLabel("E", 90); drawLabel("S", 180); drawLabel("W", 270);
-
-  // Static needle pointing to top of screen
   display.fillTriangle(centerX, centerY - radius - 2, centerX - 4, centerY - radius + 5, centerX + 4, centerY - radius + 5, WHITE);
-  display.drawLine(centerX, centerY - radius, centerX, centerY + 5, WHITE);
 }
 
-// --- DISPLAY INITIALIZATION ---
-
 void display_init() {
-  if(!display.begin(0x3C)) {
-    Serial.println(F("SSD1305 allocation failed"));
-  } else {
-    displayConnect = 2;
+  if (display.begin(0x3C)) {
+    displayConnect = 2; 
     pinMode(OLED_CS, OUTPUT);
-    digitalWrite(OLED_CS, HIGH);
-    display.begin();
+    digitalWrite(OLED_CS, HIGH); // Free the bus
     display.clearDisplay();
     display.display();
   }
 }
 
-// --- MAIN UPDATE FUNCTION ---
-
 int update_display(uint8_t state, uint8_t connected) {
-  if (connected == 1) {
-    display_init();
-    return 1;
+  if (connected == 1) { 
+    display_init(); 
+    return 1; 
   } else if (connected == 2) {
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(WHITE);
 
-    // TOP BAR (Clock, Battery, SAT status)
-    display.setCursor(2, 2);
-    display.print(fix_type >= 3 ? "FIX" : "SCH");
-    drawClock(52, 2);
+    // --- TOP BAR ---
+    drawAnimatedBars(4, 2, fix_type);     // Signal Bars back in the corner
+    display.setCursor(52, 2);
+    display.printf("%02d:%02d", hour, minute);
     drawBatteryIcon(98, 2, batteryLevel);
 
-    // BOTTOM BAR (Recording dot)
-    drawRecordingStatus(98, 54);
+    // --- BOTTOM STATUS ---
+    if (SDState == 1) {
+      display.fillCircle(102, 58, 2, WHITE);
+      display.setCursor(108, 55); display.print("REC");
+    }
 
+    // --- MAIN CONTENT ---
     if (state == 1) {
-      // SCREEN 1: COMPASS
-      compassDegree = getCompassDegree(); // Polled directly for smooth movement
       drawAdvancedCompass(compassDegree); 
       display.setCursor(0, 54);
       display.printf("HDG: %.1f", compassDegree);
     } else {
-      // SCREEN 2: DATA
       display.setCursor(0, 18);
-      display.printf("LAT: %.6f\n", lat);
-      display.printf("LON: %.6f\n", longi);
-      display.printf("SPD: %ld mph", speed_long);
+      display.printf("LAT: %.6f\nLON: %.6f\nSPD: %ld mph\nALT: %.0f FT", lat, longi, speed_long, alt);
     }
     
     display.display();
-    return 1;
-  } else {
-    return 0;
+    digitalWrite(OLED_CS, HIGH); // Critical: Free SPI for SD card
   }
+  return 0;
 }
 #endif
