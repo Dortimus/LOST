@@ -13,6 +13,7 @@ File* GPSfile_p = &GPSfile;
 extern volatile uint8_t displayConnect;
 int batteryLevel = 0;
 
+
 void setup() {
   Serial.begin(115200);
   Wire.begin();
@@ -29,7 +30,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_DISPLAY), updateFlagDisplay, FALLING);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_SD_SAVE), toggleFlagSDSave, FALLING);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN_CONNECTED), FlagDisplayChange, CHANGE);
-  
+  //Pin 25, enable low (pullup resistor)
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_25, 0);
   powerState = 0;
   
@@ -37,7 +38,6 @@ void setup() {
 }
 
 void loop() {
-  // Sleep Logic (Original)
   if (powerState == 1) {
     Serial.println("Sleeping...");
     delay(2000);
@@ -50,27 +50,39 @@ void loop() {
     esp_deep_sleep_start();
   }
 
-  // GPS and SD Writing Logic (Original)
   if (myGNSS.checkUblox()) {
     PVTUpdate();
+    if (fix_type >= 3) {
+      Serial.printf("CONNECTED (Sats: %d)\n", (int)myGNSS.getSIV());
+    } else {
+      Serial.println("SEARCHING...");
+    }
     if (SDState == 1 && GPSfile) {
       SD_saving(GPSfile_p);
     }
   }
 
-  // SD Initialization and LED status (Original)
+  batteryLevel = checkBatteryLevel();
+  update_display(displayState, displayConnect);
   SD_saving_init(GPSfile_p);
   if (SDState == 1) {
     digitalWrite(LED_PIN, HIGH);
   } else {
     digitalWrite(LED_PIN, LOW);
   }
+  Serial.println("got past the LED write");
 
-  // REFRESH TIMER: Updates 20 times per second for smooth compass
-  static unsigned long lastRefresh = 0;
-  if (millis() - lastRefresh > 50) {
-    batteryLevel = checkBatteryLevel();
-    update_display(displayState, displayConnect);
-    lastRefresh = millis();
-  }
+  
+
+  //debugging
+  Serial.print("SDState: ");
+  Serial.println(SDState);
+  Serial.print("SDState_next: ");
+  Serial.println(SDState_next);
+  Serial.print("displayState: ");
+  Serial.println(displayState);
+  Serial.print("displayConnect: ");
+  Serial.println(displayConnect);
+  Serial.print("Battery level: ");
+  Serial.println(batteryLevel);
 }
