@@ -14,11 +14,11 @@
 #define NUM_DISPLAY_STATES 2
 
 // --- STATE VARIABLES ---
-volatile uint8_t powerState = 1;
-volatile uint8_t displayState = 0;
-volatile uint8_t displayConnect = 0;
-volatile uint8_t SDState = 0;      
-volatile uint8_t SDState_next = 0;
+volatile int powerState = 1;
+volatile int displayState = 0;
+volatile int displayConnect = 0;
+volatile int SDState = 0;      
+volatile int SDState_next = 0;
 
 // --- DEBOUNCE TIMERS ---
 volatile unsigned long last_power_time = 0;   

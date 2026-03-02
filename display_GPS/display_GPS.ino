@@ -10,7 +10,7 @@
 
 File GPSfile;
 File* GPSfile_p = &GPSfile;
-extern volatile uint8_t displayConnect;
+extern volatile int displayConnect;
 int batteryLevel = 0;
 
 
@@ -70,19 +70,23 @@ void loop() {
   } else {
     digitalWrite(LED_PIN, LOW);
   }
-  Serial.println("got past the LED write");
+  //Serial.println("got past the LED write");
 
   
 
   //debugging
-  Serial.print("SDState: ");
-  Serial.println(SDState);
-  Serial.print("SDState_next: ");
-  Serial.println(SDState_next);
-  Serial.print("displayState: ");
-  Serial.println(displayState);
-  Serial.print("displayConnect: ");
-  Serial.println(displayConnect);
-  Serial.print("Battery level: ");
-  Serial.println(batteryLevel);
+  Serial.print("Heading: ");
+  Serial.println(compassDegree);
+  Serial.print("Fix type: ");
+  Serial.println(fix_type);
+  //Serial.print("SDState: ");
+  //Serial.println(SDState);
+  //Serial.print("SDState_next: ");
+  //Serial.println(SDState_next);
+  //Serial.print("displayState: ");
+  //Serial.println(displayState);
+  //Serial.print("displayConnect: ");
+  //Serial.println(displayConnect);
+  //Serial.print("Battery level: ");
+  //Serial.println(batteryLevel);
 }

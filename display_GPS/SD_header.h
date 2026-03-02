@@ -5,12 +5,17 @@
 //SD card chip select pin
 #define SD_CS 14
 
+extern volatile float lat, longi, alt, compassDegree;
+extern volatile long speed_long;
+extern volatile int fix_type, hour, minute, SDState, displayConnect;
+extern int batteryLevel;
+
 void init_SD () {
   pinMode(SD_CS, OUTPUT);
   digitalWrite(SD_CS, HIGH);
 }
 
-uint8_t SD_saving_init (File* file_p) {
+int SD_saving_init (File* file_p) {
   //Takes current SD state and next SD state and creates a file to save the current trip
   if (file_p == NULL) {
     Serial.println("Null file pointer");
@@ -34,7 +39,7 @@ uint8_t SD_saving_init (File* file_p) {
     } else {
       Serial.println("SD card initialized");
       //Card is recognized, create a file with a name
-      uint16_t num_files = 0;
+      int num_files = 0;
       char filename[14] = "/XXXXXXXX.csv";
       if (fix_type == 3) {
         //If we have MMDDYYMMSS data, use that to name the file
@@ -88,16 +93,17 @@ uint8_t SD_saving_init (File* file_p) {
 }
 
 void SD_saving(File* file_p) {
-  Serial.println("About to write to csv");
+  //Serial.println("About to write to csv");
   //if (!file_p || !(*file_p)) return;
   // 128 bytes is plenty for one CSV line
   char logBuffer[128]; 
 
   // Construct the string safely
   int written = snprintf(logBuffer, sizeof(logBuffer), 
-         "%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.2f,%.2f,%d,%.6f", 
-         year, month, day, hour, minute, sec, 
-         lat, longi, alt, speed_long, fix_type, compassDegree);
+       "%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.2f,%.2f,%d,%.2f", 
+       (int)year, (int)month, (int)day, (int)hour, (int)minute, (int)sec, 
+       (double)lat, (double)longi, (double)alt, (double)speed_long, 
+       (int)fix_type, (double)compassDegree);
 
   // Check if we exceeded the buffer size
   if (written >= sizeof(logBuffer)) {

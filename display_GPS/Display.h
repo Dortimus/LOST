@@ -7,7 +7,7 @@
 
 extern volatile float lat, longi, alt, compassDegree;
 extern volatile long speed_long;
-extern volatile uint8_t fix_type, hour, minute, SDState, displayConnect;
+extern volatile int fix_type, hour, minute, SDState, displayConnect;
 extern int batteryLevel;
 
 #define SCREEN_WIDTH 128
@@ -19,7 +19,7 @@ extern int batteryLevel;
 Adafruit_SSD1305 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
 // 1. TOP BAR: SIGNAL BARS
-void drawAnimatedBars(int x, int y, uint8_t fix) {
+void drawAnimatedBars(int x, int y, int fix) {
   int animStep = (millis() / 300) % 3;
   for (int i = 0; i < 3; i++) {
     int h = 4 + (i * 3);
@@ -75,7 +75,7 @@ void display_init() {
   }
 }
 
-int update_display(uint8_t state, uint8_t connected) {
+int update_display(int state, int connected) {
   if (connected == 1) { 
     display_init(); 
     return 1; 
