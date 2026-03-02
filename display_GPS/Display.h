@@ -18,52 +18,58 @@ extern int batteryLevel;
 
 Adafruit_SSD1305 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
-// 1. SIGNAL BARS (Restored)
+// 1. TOP BAR: SIGNAL BARS
 void drawAnimatedBars(int x, int y, uint8_t fix) {
   int animStep = (millis() / 300) % 3;
   for (int i = 0; i < 3; i++) {
     int h = 4 + (i * 3);
     display.drawRect(x + (i * 5), y + (10 - h), 3, h, WHITE);
-    // If we have a 3D fix, show all bars. Otherwise, animate searching.
     if (fix >= 3 || animStep >= i) {
       display.fillRect(x + (i * 5), y + (10 - h), 3, h, WHITE);
     }
   }
 }
 
-// 2. BATTERY ICON (Clean: Fill + Text)
+// 2. TOP BAR: BATTERY
 void drawBatteryIcon(int x, int y, int pct) {
   display.drawRect(x, y, 26, 12, WHITE);
   display.fillRect(x + 26, y + 3, 2, 6, WHITE); 
   int fill = map(constrain(pct, 0, 100), 0, 100, 0, 22);
   if (fill > 0) display.fillRect(x + 2, y + 2, fill, 8, WHITE);
-  
   display.setCursor(x + 3, y + 2);
   display.setTextColor(pct > 60 ? BLACK : WHITE);
   display.print(pct);
   display.setTextColor(WHITE);
 }
 
-// 3. COMPASS
-void drawAdvancedCompass(float heading) {
-  int centerX = 64, centerY = 35, radius = 20;
-  display.drawCircle(centerX, centerY, radius + 5, WHITE);
-  auto drawLabel = [&](const char* label, float angleOffset) {
-    float rad = (angleOffset - heading - 90.0) * (M_PI / 180.0);
-    int x = centerX + cos(rad) * radius;
-    int y = centerY + sin(rad) * radius;
-    display.setCursor(x - 3, y - 3);
-    display.print(label);
-  };
-  drawLabel("N", 0); drawLabel("E", 90); drawLabel("S", 180); drawLabel("W", 270);
-  display.fillTriangle(centerX, centerY - radius - 2, centerX - 4, centerY - radius + 5, centerX + 4, centerY - radius + 5, WHITE);
+// 3. RADAR COMPASS (Replaced the "Advanced" one)
+void drawRadarCompass(int centerX, int centerY, int radius, float heading) {
+  // Draw Stationary Radar Grid
+  display.drawCircle(centerX, centerY, radius, WHITE);       // Outer ring
+  display.drawCircle(centerX, centerY, radius/2, WHITE);     // Inner ring
+  display.drawLine(centerX - radius, centerY, centerX + radius, centerY, WHITE); // Horiz line
+  display.drawLine(centerX, centerY - radius, centerX, centerY + radius, WHITE); // Vert line
+
+  // Draw Rotating "Sweep" Needle
+  float angleRad = (heading - 90.0) * (M_PI / 180.0);
+  int xEnd = centerX + radius * cos(angleRad);
+  int yEnd = centerY + radius * sin(angleRad);
+  
+  display.drawLine(centerX, centerY, xEnd, yEnd, WHITE);
+  display.fillCircle(xEnd, yEnd, 3, WHITE); // Radar "Target" blip at the end
+
+  // Stationary Cardinal Labels
+  display.setCursor(centerX - 3, centerY - radius - 10); display.print("N");
+  display.setCursor(centerX + radius + 5, centerY - 3);  display.print("E");
+  display.setCursor(centerX - 3, centerY + radius + 3);  display.print("S");
+  display.setCursor(centerX - radius - 10, centerY - 3); display.print("W");
 }
 
 void display_init() {
   if (display.begin(0x3C)) {
     displayConnect = 2; 
     pinMode(OLED_CS, OUTPUT);
-    digitalWrite(OLED_CS, HIGH); // Free the bus
+    digitalWrite(OLED_CS, HIGH); 
     display.clearDisplay();
     display.display();
   }
@@ -79,29 +85,31 @@ int update_display(uint8_t state, uint8_t connected) {
     display.setTextColor(WHITE);
 
     // --- TOP BAR ---
-    drawAnimatedBars(4, 2, fix_type);     // Signal Bars back in the corner
+    drawAnimatedBars(4, 2, fix_type);
     display.setCursor(52, 2);
     display.printf("%02d:%02d", hour, minute);
     drawBatteryIcon(98, 2, batteryLevel);
 
     // --- BOTTOM STATUS ---
     if (SDState == 1) {
-      display.fillCircle(102, 58, 2, WHITE);
-      display.setCursor(108, 55); display.print("REC");
+      display.fillCircle(105, 58, 2, WHITE);
+      display.setCursor(110, 55); display.print("REC");
     }
 
     // --- MAIN CONTENT ---
     if (state == 1) {
-      drawAdvancedCompass(compassDegree); 
-      display.setCursor(0, 54);
-      display.printf("HDG: %.1f", compassDegree);
+      // Draw the Radar at Center X:64, Y:36, Radius:18
+      drawRadarCompass(64, 36, 18, compassDegree);
+      display.setCursor(0, 56);
+      display.printf("HDG: %03d", (int)compassDegree);
     } else {
       display.setCursor(0, 18);
       display.printf("LAT: %.6f\nLON: %.6f\nSPD: %ld mph\nALT: %.0f FT", lat, longi, speed_long, alt);
     }
     
     display.display();
-    digitalWrite(OLED_CS, HIGH); // Critical: Free SPI for SD card
+    digitalWrite(OLED_CS, HIGH); // Free SPI for SD card
+    return 2;
   }
   return 0;
 }
