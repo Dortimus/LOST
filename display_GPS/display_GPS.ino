@@ -11,6 +11,12 @@
 File GPSfile;
 File* GPSfile_p = &GPSfile;
 extern volatile int displayConnect;
+float distance = 0;
+float lat1 = 0;
+float lon1 = 0;
+float lat2 = 0;
+float lon2 = 0;
+int lastDistanceTime = 5000;
 int batteryLevel = 0;
 
 
@@ -58,6 +64,19 @@ void loop() {
       Serial.println("SEARCHING...");
     }
     if (SDState == 1 && GPSfile) {
+      if (((lastDistanceTime - millis()) > 500) && (fix_type >= 3)) {
+        if ((lat2 != 0) && (lon2 != 0)) {
+          lat2 = lat;
+          lon2 = longi;
+        } else {
+          float lat1 = lat;
+          float lon1 = longi;
+          float distance = haversine(lat1, lon1, lat2, lon2);
+          float lat2 = lat1;
+          float lon2 = lon2;
+        }
+        
+      }
       SD_saving(GPSfile_p);
     }
   }
@@ -75,10 +94,12 @@ void loop() {
   
 
   //debugging
-  Serial.print("Heading: ");
-  Serial.println(compassDegree);
-  Serial.print("Fix type: ");
-  Serial.println(fix_type);
+  Serial.print("Distance: ");
+  Serial.println(distance);
+  //Serial.print("Heading: ");
+  //Serial.println(compassDegree);
+  //Serial.print("Fix type: ");
+  //Serial.println(fix_type);
   //Serial.print("SDState: ");
   //Serial.println(SDState);
   //Serial.print("SDState_next: ");

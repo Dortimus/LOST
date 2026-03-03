@@ -97,4 +97,25 @@ void init_mag() {
     bmm350.setPresetMode(BMM350_PRESETMODE_HIGHACCURACY, BMM350_DATA_RATE_25HZ);
   }
 }
+
+float haversine(float lat1, float lon1, float lat2, float lon2) {
+  // Distance in miles (approximate Earth radius)
+  float R = 3959.0;
+  
+  // Convert degrees to radians
+  float dLat = (lat2 - lat1) * PI / 180.0;
+  float dLon = (lon2 - lon1) * PI / 180.0;
+  
+  float rLat1 = lat1 * PI / 180.0;
+  float rLat2 = lat2 * PI / 180.0;
+  
+  // Haversine formula
+  float a = sin(dLat / 2.0) * sin(dLat / 2.0) +
+            cos(rLat1) * cos(rLat2) *
+            sin(dLon / 2.0) * sin(dLon / 2.0);
+  
+  float c = 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
+  return R * c;
+}
+
 #endif
