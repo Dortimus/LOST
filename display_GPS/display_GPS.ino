@@ -10,13 +10,14 @@
 
 File GPSfile;
 File* GPSfile_p = &GPSfile;
-extern volatile uint8_t displayConnect;
-int batteryLevel = 0;
-
+extern volatile int displayConnect;
+float distance = 0;
 float lat1 = 0;
 float lon1 = 0;
 float lat2 = 0;
 float lon2 = 0;
+int lastDistanceTime = 5000;
+int batteryLevel = 0;
 
 
 void setup() {
@@ -63,8 +64,8 @@ void loop() {
       Serial.println("SEARCHING...");
     }
     if (SDState == 1 && GPSfile) {
-      if ((lastDistancetime - millis()) > 500) && (fixType >= 3) {
-        if (lat2 != 0) && (lon2 != 0) {
+      if (((lastDistanceTime - millis()) > 500) && (fix_type >= 3)) {
+        if ((lat2 != 0) && (lon2 != 0)) {
           lat2 = lat;
           lon2 = longi;
         } else {
@@ -88,19 +89,25 @@ void loop() {
   } else {
     digitalWrite(LED_PIN, LOW);
   }
-  Serial.println("got past the LED write");
+  //Serial.println("got past the LED write");
 
   
 
   //debugging
-  Serial.print("SDState: ");
-  Serial.println(SDState);
-  Serial.print("SDState_next: ");
-  Serial.println(SDState_next);
-  Serial.print("displayState: ");
-  Serial.println(displayState);
-  Serial.print("displayConnect: ");
-  Serial.println(displayConnect);
-  Serial.print("Battery level: ");
-  Serial.println(batteryLevel);
+  Serial.print("Distance: ");
+  Serial.println(distance);
+  //Serial.print("Heading: ");
+  //Serial.println(compassDegree);
+  //Serial.print("Fix type: ");
+  //Serial.println(fix_type);
+  //Serial.print("SDState: ");
+  //Serial.println(SDState);
+  //Serial.print("SDState_next: ");
+  //Serial.println(SDState_next);
+  //Serial.print("displayState: ");
+  //Serial.println(displayState);
+  //Serial.print("displayConnect: ");
+  //Serial.println(displayConnect);
+  //Serial.print("Battery level: ");
+  //Serial.println(batteryLevel);
 }

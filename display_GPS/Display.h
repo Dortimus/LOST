@@ -5,7 +5,9 @@
 #include <Adafruit_SSD1305.h>
 #include <math.h>
 
-extern volatile uint8_t SDState;
+extern volatile float lat, longi, alt, compassDegree;
+extern volatile long speed_long;
+extern volatile int fix_type, hour, minute, SDState, displayConnect;
 extern int batteryLevel;
 
 #define SCREEN_WIDTH 128
@@ -16,79 +18,99 @@ extern int batteryLevel;
 
 Adafruit_SSD1305 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
+// 1. TOP BAR: SIGNAL BARS
+void drawAnimatedBars(int x, int y, int fix) {
+  int animStep = (millis() / 300) % 3;
+  for (int i = 0; i < 3; i++) {
+    int h = 4 + (i * 3);
+    display.drawRect(x + (i * 5), y + (10 - h), 3, h, WHITE);
+    if (fix >= 3 || animStep >= i) {
+      display.fillRect(x + (i * 5), y + (10 - h), 3, h, WHITE);
+    }
+  }
+}
 
-void drawAdvancedCompass(float heading) {
-  int centerX = 64; 
-  int centerY = 35;
-  int radius = 20;
+// 2. TOP BAR: BATTERY
+void drawBatteryIcon(int x, int y, int pct) {
+  display.drawRect(x, y, 26, 12, WHITE);
+  display.fillRect(x + 26, y + 3, 2, 6, WHITE); 
+  int fill = map(constrain(pct, 0, 100), 0, 100, 0, 22);
+  if (fill > 0) display.fillRect(x + 2, y + 2, fill, 8, WHITE);
+  display.setCursor(x + 3, y + 2);
+  display.setTextColor(pct > 60 ? BLACK : WHITE);
+  display.print(pct);
+  display.setTextColor(WHITE);
+}
 
-  display.drawCircle(centerX, centerY, radius + 5, WHITE);
+// 3. RADAR COMPASS (Replaced the "Advanced" one)
+void drawRadarCompass(int centerX, int centerY, int radius, float heading) {
+  // Draw Stationary Radar Grid
+  display.drawCircle(centerX, centerY, radius, WHITE);       // Outer ring
+  display.drawCircle(centerX, centerY, radius/2, WHITE);     // Inner ring
+  display.drawLine(centerX - radius, centerY, centerX + radius, centerY, WHITE); // Horiz line
+  display.drawLine(centerX, centerY - radius, centerX, centerY + radius, WHITE); // Vert line
 
-  // Labels that rotate so North is always "Physical North"
-  auto drawLabel = [&](const char* label, float angleOffset) {
-    float rad = (angleOffset - heading - 90.0) * (M_PI / 180.0);
-    int x = centerX + cos(rad) * (radius);
-    int y = centerY + sin(rad) * (radius);
-    display.setCursor(x - 3, y - 3);
-    display.print(label);
-  };
+  // Draw Rotating "Sweep" Needle
+  float angleRad = (heading - 90.0) * (M_PI / 180.0);
+  int xEnd = centerX + radius * cos(angleRad);
+  int yEnd = centerY + radius * sin(angleRad);
+  
+  display.drawLine(centerX, centerY, xEnd, yEnd, WHITE);
+  display.fillCircle(xEnd, yEnd, 3, WHITE); // Radar "Target" blip at the end
 
-  drawLabel("N", 0); drawLabel("E", 90); drawLabel("S", 180); drawLabel("W", 270);
-
-  // Static needle pointing to top of screen
-  display.fillTriangle(centerX, centerY - radius - 2, centerX - 4, centerY - radius + 5, centerX + 4, centerY - radius + 5, WHITE);
-  display.drawLine(centerX, centerY - radius, centerX, centerY + 10, WHITE);
+  // Stationary Cardinal Labels
+  display.setCursor(centerX - 3, centerY - radius - 10); display.print("N");
+  display.setCursor(centerX + radius + 5, centerY - 3);  display.print("E");
+  display.setCursor(centerX - 3, centerY + radius + 3);  display.print("S");
+  display.setCursor(centerX - radius - 10, centerY - 3); display.print("W");
 }
 
 void display_init() {
-  if(!display.begin(0x3C)) {
-    Serial.println(F("SSD1305 allocation failed"));
-  } else {
-    Serial.println("SSD1305 connected successfully");
-    displayConnect = 2;
+  if (display.begin(0x3C)) {
+    displayConnect = 2; 
     pinMode(OLED_CS, OUTPUT);
-    digitalWrite(OLED_CS, HIGH);
-    display.begin();
+    digitalWrite(OLED_CS, HIGH); 
     display.clearDisplay();
     display.display();
   }
 }
 
-int update_display(uint8_t state, uint8_t connected) {
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-
-  if (connected == 1) {
-    //Display is freshly connected
-    display_init();
-    return 1;
+int update_display(int state, int connected) {
+  if (connected == 1) { 
+    display_init(); 
+    return 1; 
   } else if (connected == 2) {
-    //This should be a switch:case when we have more than 2 states.
-    if (state == 1) {
-      display.setCursor(40, 0);
-      display.print(F("COMPASS"));
-      compassDegree = getCompassDegree();
-      drawAdvancedCompass(compassDegree); 
-      display.setCursor(0, 56);
-      display.printf("HDG: %.1f", compassDegree);
-    } else {
-      display.setCursor(0, 0);
-      display.print(fix_type >= 3 ? F("SAT: CONNECTED") : F("SAT: SEARCHING..."));
-      display.setCursor(0, 15);
-      display.printf("LAT: %.6f\n", lat);
-      display.printf("LON: %.6f\n", longi);
-      display.printf("SPD: %ld mph\n", speed_long);
-      display.printf("BAT: %d\n", batteryLevel);
-      display.setCursor(0, 56);
-      display.printf("FIX:%d | LOG:%s", fix_type, SDState ? "ON" : "OFF");
-    }
-    display.display();
-    return 1;
-  } else {
-    //display not connected or incorrect states, do nothing, exit the function.
-    return 0;
-  }
-}
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
 
+    // --- TOP BAR ---
+    drawAnimatedBars(4, 2, fix_type);
+    display.setCursor(52, 2);
+    display.printf("%02d:%02d", hour, minute);
+    drawBatteryIcon(98, 2, batteryLevel);
+
+    // --- BOTTOM STATUS ---
+    if (SDState == 1) {
+      display.fillCircle(105, 58, 2, WHITE);
+      display.setCursor(110, 55); display.print("REC");
+    }
+
+    // --- MAIN CONTENT ---
+    if (state == 1) {
+      // Draw the Radar at Center X:64, Y:36, Radius:18
+      drawRadarCompass(64, 36, 18, compassDegree);
+      display.setCursor(0, 56);
+      display.printf("HDG: %03d", (int)compassDegree);
+    } else {
+      display.setCursor(0, 18);
+      display.printf("LAT: %.6f\nLON: %.6f\nSPD: %ld mph\nALT: %.0f FT", lat, longi, speed_long, alt);
+    }
+    
+    display.display();
+    digitalWrite(OLED_CS, HIGH); // Free SPI for SD card
+    return 2;
+  }
+  return 0;
+}
 #endif
