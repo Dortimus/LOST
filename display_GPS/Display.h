@@ -7,8 +7,9 @@
 
 extern volatile float lat, longi, alt, compassDegree;
 extern volatile long speed_long;
-extern volatile int fix_type, hour, minute, SDState, displayConnect;
+extern volatile int fix_type, hour, minute, day, month, year, SDState, displayConnect;
 extern int batteryLevel;
+extern float distance;
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -43,16 +44,13 @@ void drawBatteryIcon(int x, int y, int pct) {
   display.setTextColor(WHITE);
 }
 
-// 3. TAPE COMPASS
+// 3. TAPE COMPASS (Updated with NE, SE, SW, NW)
 void drawTapeCompass(int x, int y, int width, float heading) {
   int center = x + width / 2;
   int degreesVisible = 45;
   float pixelsPerDegree = (float)width / degreesVisible;
 
-  // Base line
   display.drawLine(x, y, x + width, y, WHITE);
-
-  // Triangle pointer below center
   display.fillTriangle(center, y + 1, center - 5, y + 9, center + 5, y + 9, WHITE);
 
   for (int d = -degreesVisible / 2; d <= degreesVisible / 2; d++) {
@@ -72,45 +70,96 @@ void drawTapeCompass(int x, int y, int width, float heading) {
 
     if (label) {
       display.drawLine(px, y - 10, px, y, WHITE);
-      int labelX = px - (strlen(label) == 2 ? 4 : 2);
-      display.setCursor(labelX, y - 19);
+      display.setCursor(px - (strlen(label) * 3), y - 19);
       display.print(label);
     } else if (deg % 10 == 0) {
       display.drawLine(px, y - 5, px, y, WHITE);
-    } else if (deg % 5 == 0) {
-      display.drawLine(px, y - 3, px, y, WHITE);
     }
   }
 
-  // Smaller degree number (size 2)
   display.setTextSize(2);
-  char degStr[8];
-  sprintf(degStr, "%03d", (int)heading);
-  int degWidth = strlen(degStr) * 12;
-  display.setCursor(center - degWidth / 2, y + 14);
-  display.print(degStr);
+  display.setCursor(center - 18, y + 14);
+  display.printf("%03d", (int)heading);
+  display.drawCircle(center + 22, y + 16, 2, WHITE);
+}
 
-  // Large cardinal direction
-  const char* cardinal = "";
-  int h = (int)heading;
-  if      (h < 23  || h >= 338) cardinal = "N";
-  else if (h < 68)              cardinal = "NE";
-  else if (h < 113)             cardinal = "E";
-  else if (h < 158)             cardinal = "SE";
-  else if (h < 203)             cardinal = "S";
-  else if (h < 248)             cardinal = "SW";
-  else if (h < 293)             cardinal = "W";
-  else                          cardinal = "NW";
+// 4. BIKE MODE
+void drawBikeMode() {
+  int center = 64;
+  display.setTextSize(1);
+  display.setCursor(0, 14);
+  display.print("BIKE MODE");
 
-  display.setTextSize(3);
-  int cardWidth = strlen(cardinal) * 18;
-  display.setCursor(center - cardWidth / 2, y + 32);
-  display.print(cardinal);
+  display.setTextSize(4);
+  char spdStr[8];
+  sprintf(spdStr, "%ld", speed_long);
+  int spdWidth = strlen(spdStr) * 24;
+  display.setCursor(center - spdWidth / 2, 24);
+  display.print(spdStr);
 
   display.setTextSize(1);
+  display.print(" mph");
+
+  display.setCursor(0, 56);
+  display.printf("ALT: %.0fft  HDG: %03d", alt, (int)compassDegree);
+}
+
+// 5. CAR MODE (Lowered speed, removed line)
+void drawCarMode() {
+  int center = 64;
+  display.setTextSize(1);
+  display.setCursor(0, 14);
+  display.print("CAR MODE");
+
+  display.setTextSize(3);
+  char spdStr[8];
+  sprintf(spdStr, "%ld", speed_long);
+  int spdWidth = strlen(spdStr) * 18;
+  display.setCursor(center - spdWidth / 2 - 10, 20); 
+  display.print(spdStr);
+  
+  display.setTextSize(2);
+  display.setCursor(center + spdWidth / 2 - 8, 26);
+  display.print("mph");
+  
+  display.setTextSize(1);
+  display.setCursor(0, 48);
+  display.printf("DIST: %.2f mi", distance);
+  display.setCursor(0, 56);
+  display.printf("GPS: %.4f, %.4f", lat, longi);
+}
+
+// 6. HOME SCREEN (Simple Time/Date)
+void drawHomeScreen() {
+  int center = 64;
+  int h12 = hour % 12 == 0 ? 12 : hour % 12;
+
+  display.setTextSize(3);
+  char timeStr[8];
+  sprintf(timeStr, "%d:%02d", h12, minute);
+  int timeWidth = strlen(timeStr) * 18;
+  display.setCursor(center - timeWidth / 2, 18);
+  display.print(timeStr);
+
+  const char* months[] = {"JAN","FEB","MAR","APR","MAY","JUN",
+                          "JUL","AUG","SEP","OCT","NOV","DEC"};
+  
+  display.setTextSize(1);
+  char dateStr[16];
+  if (month >= 1 && month <= 12) sprintf(dateStr, "%s %02d, %d", months[month-1], day, year);
+  else sprintf(dateStr, "DATE ERROR");
+
+  int dateWidth = strlen(dateStr) * 6;
+  display.setCursor(center - dateWidth / 2, 45);
+  display.print(dateStr);
 }
 
 void display_init() {
+  pinMode(OLED_RESET, OUTPUT);
+  digitalWrite(OLED_RESET, LOW);
+  delay(20);
+  digitalWrite(OLED_RESET, HIGH);
+
   if (display.begin(0x3C)) {
     displayConnect = 2;
     pinMode(OLED_CS, OUTPUT);
@@ -129,24 +178,24 @@ int update_display(int state, int connected) {
     display.setTextSize(1);
     display.setTextColor(WHITE);
 
-    // --- TOP BAR ---
     drawAnimatedBars(4, 2, fix_type);
-    display.setCursor(52, 2);
-    display.printf("%02d:%02d", hour, minute);
+    
+    if (state != 0) {
+      display.setCursor(52, 2);
+      display.printf("%02d:%02d", hour % 12 == 0 ? 12 : hour % 12, minute);
+    }
+    
     drawBatteryIcon(98, 2, batteryLevel);
 
-    // --- BOTTOM STATUS ---
     if (SDState == 1) {
-      display.fillCircle(105, 58, 2, WHITE);
-      display.setCursor(110, 55); display.print("REC");
+      display.fillCircle(115, 58, 2, WHITE);
     }
 
-    // --- MAIN CONTENT ---
-    if (state == 1) {
-      drawTapeCompass(0, 32, 128, compassDegree);
-    } else {
-      display.setCursor(0, 18);
-      display.printf("LAT: %.6f\nLON: %.6f\nSPD: %ld mph\nALT: %.0f FT", lat, longi, speed_long, alt);
+    switch(state) {
+      case 0: drawHomeScreen(); break;
+      case 1: drawBikeMode(); break;
+      case 2: drawCarMode(); break;
+      case 3: drawTapeCompass(0, 32, 128, compassDegree); break;
     }
 
     display.display();
