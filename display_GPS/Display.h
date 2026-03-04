@@ -33,52 +33,97 @@ void drawAnimatedBars(int x, int y, int fix) {
 // 2. TOP BAR: BATTERY
 void drawBatteryIcon(int x, int y, int pct) {
   display.drawRect(x, y, 26, 12, WHITE);
-  display.fillRect(x + 26, y + 3, 2, 6, WHITE); 
+  display.fillRect(x + 26, y + 3, 2, 6, WHITE);
   int fill = map(constrain(pct, 0, 100), 0, 100, 0, 22);
   if (fill > 0) display.fillRect(x + 2, y + 2, fill, 8, WHITE);
+
   display.setCursor(x + 3, y + 2);
-  display.setTextColor(pct > 60 ? BLACK : WHITE);
+  display.setTextColor(fill > 10 ? BLACK : WHITE);
   display.print(pct);
   display.setTextColor(WHITE);
 }
 
-// 3. RADAR COMPASS (Replaced the "Advanced" one)
-void drawRadarCompass(int centerX, int centerY, int radius, float heading) {
-  // Draw Stationary Radar Grid
-  display.drawCircle(centerX, centerY, radius, WHITE);       // Outer ring
-  display.drawCircle(centerX, centerY, radius/2, WHITE);     // Inner ring
-  display.drawLine(centerX - radius, centerY, centerX + radius, centerY, WHITE); // Horiz line
-  display.drawLine(centerX, centerY - radius, centerX, centerY + radius, WHITE); // Vert line
+// 3. TAPE COMPASS
+void drawTapeCompass(int x, int y, int width, float heading) {
+  int center = x + width / 2;
+  int degreesVisible = 45;
+  float pixelsPerDegree = (float)width / degreesVisible;
 
-  // Draw Rotating "Sweep" Needle
-  float angleRad = (heading - 90.0) * (M_PI / 180.0);
-  int xEnd = centerX + radius * cos(angleRad);
-  int yEnd = centerY + radius * sin(angleRad);
-  
-  display.drawLine(centerX, centerY, xEnd, yEnd, WHITE);
-  display.fillCircle(xEnd, yEnd, 3, WHITE); // Radar "Target" blip at the end
+  // Base line
+  display.drawLine(x, y, x + width, y, WHITE);
 
-  // Stationary Cardinal Labels
-  display.setCursor(centerX - 3, centerY - radius - 10); display.print("N");
-  display.setCursor(centerX + radius + 5, centerY - 3);  display.print("E");
-  display.setCursor(centerX - 3, centerY + radius + 3);  display.print("S");
-  display.setCursor(centerX - radius - 10, centerY - 3); display.print("W");
+  // Triangle pointer below center
+  display.fillTriangle(center, y + 1, center - 5, y + 9, center + 5, y + 9, WHITE);
+
+  for (int d = -degreesVisible / 2; d <= degreesVisible / 2; d++) {
+    int deg = ((int)(heading + d) % 360 + 360) % 360;
+    int px = center + (int)(d * pixelsPerDegree);
+    if (px < x || px > x + width) continue;
+
+    const char* label = nullptr;
+    if      (deg == 0)   label = "N";
+    else if (deg == 45)  label = "NE";
+    else if (deg == 90)  label = "E";
+    else if (deg == 135) label = "SE";
+    else if (deg == 180) label = "S";
+    else if (deg == 225) label = "SW";
+    else if (deg == 270) label = "W";
+    else if (deg == 315) label = "NW";
+
+    if (label) {
+      display.drawLine(px, y - 10, px, y, WHITE);
+      int labelX = px - (strlen(label) == 2 ? 4 : 2);
+      display.setCursor(labelX, y - 19);
+      display.print(label);
+    } else if (deg % 10 == 0) {
+      display.drawLine(px, y - 5, px, y, WHITE);
+    } else if (deg % 5 == 0) {
+      display.drawLine(px, y - 3, px, y, WHITE);
+    }
+  }
+
+  // Smaller degree number (size 2)
+  display.setTextSize(2);
+  char degStr[8];
+  sprintf(degStr, "%03d", (int)heading);
+  int degWidth = strlen(degStr) * 12;
+  display.setCursor(center - degWidth / 2, y + 14);
+  display.print(degStr);
+
+  // Large cardinal direction
+  const char* cardinal = "";
+  int h = (int)heading;
+  if      (h < 23  || h >= 338) cardinal = "N";
+  else if (h < 68)              cardinal = "NE";
+  else if (h < 113)             cardinal = "E";
+  else if (h < 158)             cardinal = "SE";
+  else if (h < 203)             cardinal = "S";
+  else if (h < 248)             cardinal = "SW";
+  else if (h < 293)             cardinal = "W";
+  else                          cardinal = "NW";
+
+  display.setTextSize(3);
+  int cardWidth = strlen(cardinal) * 18;
+  display.setCursor(center - cardWidth / 2, y + 32);
+  display.print(cardinal);
+
+  display.setTextSize(1);
 }
 
 void display_init() {
   if (display.begin(0x3C)) {
-    displayConnect = 2; 
+    displayConnect = 2;
     pinMode(OLED_CS, OUTPUT);
-    digitalWrite(OLED_CS, HIGH); 
+    digitalWrite(OLED_CS, HIGH);
     display.clearDisplay();
     display.display();
   }
 }
 
 int update_display(int state, int connected) {
-  if (connected == 1) { 
-    display_init(); 
-    return 1; 
+  if (connected == 1) {
+    display_init();
+    return 1;
   } else if (connected == 2) {
     display.clearDisplay();
     display.setTextSize(1);
@@ -98,19 +143,17 @@ int update_display(int state, int connected) {
 
     // --- MAIN CONTENT ---
     if (state == 1) {
-      // Draw the Radar at Center X:64, Y:36, Radius:18
-      drawRadarCompass(64, 36, 18, compassDegree);
-      display.setCursor(0, 56);
-      display.printf("HDG: %03d", (int)compassDegree);
+      drawTapeCompass(0, 32, 128, compassDegree);
     } else {
       display.setCursor(0, 18);
       display.printf("LAT: %.6f\nLON: %.6f\nSPD: %ld mph\nALT: %.0f FT", lat, longi, speed_long, alt);
     }
-    
+
     display.display();
-    digitalWrite(OLED_CS, HIGH); // Free SPI for SD card
+    digitalWrite(OLED_CS, HIGH);
     return 2;
   }
   return 0;
 }
+
 #endif
