@@ -5,11 +5,12 @@
 #include <Adafruit_SSD1305.h>
 #include <math.h>
 
-extern volatile float lat, longi, alt, compassDegree;
+extern volatile double lat, longi;
+extern volatile float alt, compassDegree;
 extern volatile long speed_long;
 extern volatile int fix_type, hour, minute, day, month, year, SDState, displayConnect;
 extern int batteryLevel;
-extern float distance;
+extern double totalDistance;
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -90,7 +91,7 @@ void drawBikeMode() {
   display.setCursor(0, 14);
   display.print("BIKE MODE");
 
-  display.setTextSize(4);
+  display.setTextSize(3);
   char spdStr[8];
   sprintf(spdStr, "%ld", speed_long);
   int spdWidth = strlen(spdStr) * 24;
@@ -100,8 +101,10 @@ void drawBikeMode() {
   display.setTextSize(1);
   display.print(" mph");
 
+  display.setCursor(0, 48);
+  display.printf("DIST: %.2f mi", totalDistance);
   display.setCursor(0, 56);
-  display.printf("ALT: %.0fft  HDG: %03d", alt, (int)compassDegree);
+  display.printf("ALT: %.0fft  HDG: %s", alt, getCardinalDirection(compassDegree).c_str());
 }
 
 // 5. CAR MODE (Lowered speed, removed line)
@@ -115,7 +118,7 @@ void drawCarMode() {
   char spdStr[8];
   sprintf(spdStr, "%ld", speed_long);
   int spdWidth = strlen(spdStr) * 18;
-  display.setCursor(center - spdWidth / 2 - 10, 20); 
+  display.setCursor(center - spdWidth / 2 - 10, 24); 
   display.print(spdStr);
   
   display.setTextSize(2);
@@ -123,10 +126,12 @@ void drawCarMode() {
   display.print("mph");
   
   display.setTextSize(1);
-  display.setCursor(0, 48);
-  display.printf("DIST: %.2f mi", distance);
+  //display.setCursor(0, 48);
+  //display.printf("DIST: %.2f mi", totalDistance);
+  //display.setCursor(0, 56);
+  //display.printf("GPS: %.4f, %.4f", lat, longi);
   display.setCursor(0, 56);
-  display.printf("GPS: %.4f, %.4f", lat, longi);
+  display.printf("ALT: %.0fft  HDG: %s", alt, getCardinalDirection(compassDegree).c_str());
 }
 
 // 6. HOME SCREEN (Simple Time/Date)

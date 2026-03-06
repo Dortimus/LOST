@@ -5,11 +5,11 @@
 //SD card chip select pin
 #define SD_CS 14
 
-extern volatile float lat, longi, alt, compassDegree;
+extern volatile double lat, longi;
+extern volatile float alt, compassDegree;
 extern volatile long speed_long;
 extern volatile int fix_type, hour, minute, SDState, displayConnect;
 extern int batteryLevel;
-extern float distance;
 
 void init_SD () {
   pinMode(SD_CS, OUTPUT);

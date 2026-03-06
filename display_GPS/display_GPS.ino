@@ -11,11 +11,11 @@
 File GPSfile;
 File* GPSfile_p = &GPSfile;
 extern volatile int displayConnect;
-float distance = 0;
-float lat1 = 0;
-float lon1 = 0;
-float lat2 = 0;
-float lon2 = 0;
+double totalDistance = 0;
+double lat1 = 0;
+double lon1 = 0;
+double lat2 = 0;
+double lon2 = 0;
 int lastDistanceTime = 5000;
 int batteryLevel = 0;
 
@@ -64,18 +64,28 @@ void loop() {
       Serial.println("SEARCHING...");
     }
     if (SDState == 1 && GPSfile) {
-      if (((lastDistanceTime - millis()) > 500) && (fix_type >= 3)) {
-        if ((lat2 != 0) && (lon2 != 0)) {
+      // Check if time has passed, we have a 3D fix, and coordinates aren't 0
+      if ((fix_type >= 3) && (lat != 0)) {
+    
+        // CASE A: We don't have a starting point yet (First Fix)
+        if (lat2 == 0) {
           lat2 = lat;
           lon2 = longi;
-        } else {
-          float lat1 = lat;
-          float lon1 = longi;
-          float distance = haversine(lat1, lon1, lat2, lon2);
-          float lat2 = lat1;
-          float lon2 = lon2;
-        }
+          // Optional: Serial.println("First valid coordinate locked!");
+        } 
+        // CASE B: We already have a starting point, so calculate movement
+        else {
+          double distance = haversine(lat, longi, lat2, lon2);
         
+          // Update the 'previous' point to the 'current' point for the next jump
+          lat2 = lat;
+          lon2 = longi;
+        
+          // Add to your total trip distance here
+          if (distance > 0.0005) { // Only add distance if it's more than ~0.5 meters
+            totalDistance += distance;
+          }
+        } 
       }
       SD_saving(GPSfile_p);
     }
@@ -95,7 +105,7 @@ void loop() {
 
   //debugging
   Serial.print("Distance: ");
-  Serial.println(distance);
+  Serial.println(totalDistance);
   //Serial.print("Heading: ");
   //Serial.println(compassDegree);
   //Serial.print("Fix type: ");

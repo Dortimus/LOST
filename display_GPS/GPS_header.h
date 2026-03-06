@@ -9,7 +9,8 @@
 DFRobot_BMM350_I2C bmm350(&Wire, MAG_I2C);
 SFE_UBLOX_GNSS myGNSS;
 
-volatile float lat = 0, longi = 0, alt = 0, compassDegree = 0;
+volatile double lat = 0, longi = 0;
+volatile float alt = 0, compassDegree = 0;
 volatile long speed_long = 0;
 volatile int fix_type = 0, hour = 0, minute = 0, sec = 0;
 volatile int year = 0, month = 0, day = 0;
@@ -62,8 +63,8 @@ void init_gps() {
 
 int PVTUpdate () {
   fix_type = myGNSS.getFixType();
-  lat = (float)myGNSS.getLatitude() * 0.0000001;
-  longi = (float)myGNSS.getLongitude() * 0.0000001;
+  lat = (double)myGNSS.getLatitude() * 0.0000001;
+  longi = (double)myGNSS.getLongitude() * 0.0000001;
   alt = ((float)myGNSS.getAltitude() / 1000.0) * 3.28084;
   speed_long = myGNSS.getGroundSpeed() * 0.00223694;
 
@@ -98,24 +99,37 @@ void init_mag() {
   }
 }
 
-float haversine(float lat1, float lon1, float lat2, float lon2) {
-  // Distance in miles (approximate Earth radius)
-  float R = 3959.0;
+double haversine(double lat1, double lon1, double lat2, double lon2) {
+  // Use 3958.8 for slightly better Miles accuracy
+  const double R = 3958.8; 
   
-  // Convert degrees to radians
-  float dLat = (lat2 - lat1) * PI / 180.0;
-  float dLon = (lon2 - lon1) * PI / 180.0;
+  double dLat = radians(lat2 - lat1);
+  double dLon = radians(lon2 - lon1);
   
-  float rLat1 = lat1 * PI / 180.0;
-  float rLat2 = lat2 * PI / 180.0;
+  double rLat1 = radians(lat1);
+  double rLat2 = radians(lat2);
   
-  // Haversine formula
-  float a = sin(dLat / 2.0) * sin(dLat / 2.0) +
-            cos(rLat1) * cos(rLat2) *
-            sin(dLon / 2.0) * sin(dLon / 2.0);
+  double a = sin(dLat / 2.0) * sin(dLat / 2.0) +
+             cos(rLat1) * cos(rLat2) *
+             sin(dLon / 2.0) * sin(dLon / 2.0);
   
-  float c = 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
+  double c = 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
   return R * c;
+}
+
+String getCardinalDirection(float heading) {
+  // 1. Ensure heading is between 0 and 360
+  while (heading < 0) heading += 360;
+  while (heading >= 360) heading -= 360;
+
+  // 2. Define the directions in an array
+  const char* directions[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+
+  // 3. Offset by 22.5 degrees so that North (0) sits in the middle of its slice.
+  // Then divide by 45 to get an index (0-7).
+  int index = (int)((heading + 22.5) / 45.0) % 8;
+
+  return directions[index];
 }
 
 #endif
