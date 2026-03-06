@@ -192,9 +192,9 @@ int update_display(int state, int connected) {
     
     drawBatteryIcon(98, 2, batteryLevel);
 
-    if (SDState == 1) {
-      display.fillCircle(115, 58, 2, WHITE);
-    }
+    //if (SDState == 1) {
+    //  display.fillCircle(115, 58, 2, WHITE);
+    //}
 
     switch(state) {
       case 0: drawHomeScreen(); break;

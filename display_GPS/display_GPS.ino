@@ -104,8 +104,8 @@ void loop() {
   
 
   //debugging
-  Serial.print("Distance: ");
-  Serial.println(totalDistance);
+  //Serial.print("Distance: ");
+  //Serial.println(totalDistance);
   //Serial.print("Heading: ");
   //Serial.println(compassDegree);
   //Serial.print("Fix type: ");

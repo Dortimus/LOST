@@ -76,7 +76,8 @@ int SD_saving_init (File* file_p) {
         file_p->print(",");
         file_p->print("Fix type");
         file_p->print(",");
-        file_p->println("Heading (degrees from North)");
+        file_p->print("Heading (degrees from North),");
+        file_p->println("Distance (mi)");
         SDState = 1;
         Serial.println("File + header created!");
         return 1;
@@ -101,10 +102,10 @@ void SD_saving(File* file_p) {
 
   // Construct the string safely
   int written = snprintf(logBuffer, sizeof(logBuffer), 
-       "%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.2f,%.2f,%d,%.2f", 
+       "%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.2f,%.2f,%d,%.2f,%.2f", 
        (int)year, (int)month, (int)day, (int)hour, (int)minute, (int)sec, 
        (double)lat, (double)longi, (double)alt, (double)speed_long, 
-       (int)fix_type, (double)compassDegree);
+       (int)fix_type, (double)compassDegree, (double)totalDistance);
 
   // Check if we exceeded the buffer size
   if (written >= sizeof(logBuffer)) {
